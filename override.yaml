@@ -1,0 +1,152 @@
+# -- Determines if the mission-control-operator should be installed as the control plane
+# or if it's simply in a secondary cluster waiting to be promoted
+controlPlane: true
+
+disableCertManagerCheck: false
+
+
+loki:
+  enabled: true
+  loki:
+    storage:
+      bucketNames:
+        chunks: "${loki_bucket}"
+      s3:
+        #accessKeyId: <AWS ACCESS KEY ID>
+        endpoint: s3.${region}.amazonaws.com
+        insecure: false
+        region: "${region}"
+        s3: s3.${region}.amazonaws.com
+        s3ForcePathStyle: false
+        # secretAccessKey: <AWS ACCESS SECRET KEY>
+      type: s3
+  read:
+    affinity: |
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: mission-control.datastax.com/role
+                  operator: In
+                  values: ["platform"]
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    replicas: 1
+  write:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    replicas: 1
+  backend:
+    affinity: |
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: mission-control.datastax.com/role
+                  operator: In
+                  values: ["platform"]
+    replicas: 1
+
+mimir:
+  alertmanager:
+    enabled: true
+    extraArgs:
+      alertmanager-storage.backend: local
+      alertmanager-storage.local.path: /etc/alertmanager/config
+      alertmanager.configs.fallback: /etc/alertmanager/config/default.yml
+      alertmanager.sharding-ring.replication-factor: "2"
+    extraVolumeMounts:
+    - mountPath: /etc/alertmanager/config
+      name: alertmanager-config
+    - mountPath: /alertmanager
+      name: alertmanager-config-tmp
+    extraVolumes:
+    - name: alertmanager-config
+      secret:
+        secretName: alertmanager-config
+    - emptyDir: {}
+      name: alertmanager-config-tmp
+    persistentVolume:
+      accessModes:
+      - ReadWriteOnce
+      enabled: "1"
+      size: 10Gi
+    replicas: "2"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  ingester:
+    extraArgs:
+      ingester.max-global-series-per-user: "0"
+      ingester.ring.replication-factor: "1"
+    persistentVolume:
+      size: 64Gi
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  store_gateway:
+    persistentVolume:
+      size: 64Gi
+  compactor:
+    extraArgs:
+      compactor.blocks-retention-period: 30d
+    persistentVolume:
+      enabled: "1"
+      size: 64Gi
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  distributor:
+    extraArgs:
+      ingester.ring.replication-factor: "1"
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  mimir:
+    structuredConfig:
+      activity_tracker:
+        filepath: /data/activity.log
+      blocks_storage:
+        backend: s3
+        bucket_store:
+          sync_dir: /data/tsdb-sync
+        s3:
+         # access_key_id: <AWS ACCESS KEY ID>
+          bucket_name: "${mimir_bucket}"
+          endpoint: s3."${region}".amazonaws.com
+          insecure: false
+          #secret_access_key: <AWS SECRET ACCESS KEY>
+        tsdb:
+          dir: /data/tsdb
+      limits:
+        ingestion_burst_size: 100000
+        ingestion_rate: 50000
+        max_label_names_per_series: 120
+        out_of_order_time_window: 5m
+dex:
+  config:
+    enablePasswordDB: true
+    staticPasswords:
+      - email: admin@example.com
+        hash: "$2y$10$B8QcQRQEA5Uc0ggpKFgV0OfalYK6QKoSDvFBgh97bX1LHp/McAv7G"
+        username: admin
+        userID: "my_userterraform state"

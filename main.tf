@@ -15,19 +15,14 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  cluster_name = "education-eks-${random_string.suffix.result}"
-}
-
-resource "random_string" "suffix" {
-  length  = 8
-  special = false
+  cluster_name = var.cluster_name
 }
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.8.1"
 
-  name = "education-vpc"
+  name = "vpc-terraform-for-mc"
 
   cidr = "10.0.0.0/16"
   azs  = slice(data.aws_availability_zones.available.names, 0, 3)
@@ -51,13 +46,14 @@ module "vpc" {
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "20.8.5"
+  
+  cluster_endpoint_public_access  = true
 
   cluster_name    = local.cluster_name
-  cluster_version = "1.29"
+  cluster_version = "1.31"
 
-  cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true
-
+  depends_on = [module.vpc]
   cluster_addons = {
     aws-ebs-csi-driver = {
       service_account_role_arn = module.irsa-ebs-csi.iam_role_arn
@@ -66,6 +62,7 @@ module "eks" {
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
+  
 
   eks_managed_node_group_defaults = {
     ami_type = "AL2_x86_64"
@@ -73,26 +70,63 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    one = {
-      name = "node-group-1"
+    one = { 
+      #iam_role_arn = aws_iam_role.db-role.arn
+      name = "database"
 
-      instance_types = ["t3.small"]
-
-      min_size     = 1
-      max_size     = 3
-      desired_size = 2
+      instance_types = ["r6i.xlarge"]
+    
+      min_size     = 3
+      max_size     = 5
+      desired_size = 3
+      
+       labels = {
+       "mission-control.datastax.com/role" = "database"
+  }
     }
 
     two = {
-      name = "node-group-2"
-
-      instance_types = ["t3.small"]
+      name = "platform"
+ 
+      instance_types = ["t3.xlarge"]
 
       min_size     = 1
-      max_size     = 2
-      desired_size = 1
+      max_size     = 5
+      desired_size = 4
+      labels = {
+       "mission-control.datastax.com/role" = "platform"
+      }
+
+        
     }
   }
+}
+
+provider "kubernetes" {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+    # Configure authentication using AWS CLI for EKS cluster
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      args        = ["eks", "get-token", "--cluster-name", var.cluster_name]
+      command     = "aws"
+    }  
+   
+ 
+}
+
+resource "kubernetes_annotations" "set_default_storage" {
+  api_version = "storage.k8s.io/v1"
+  kind        = "StorageClass"
+  metadata {
+    name = "gp2"
+  }
+  # These annotations will be applied to the StorageClass resource itself
+  annotations = {
+    "storageclass.kubernetes.io/is-default-class" = "true"
+  }
+  depends_on=[module.eks.cluster_name]
 }
 
 
@@ -110,4 +144,78 @@ module "irsa-ebs-csi" {
   provider_url                  = module.eks.oidc_provider
   role_policy_arns              = [data.aws_iam_policy.ebs_csi_policy.arn]
   oidc_fully_qualified_subjects = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+}
+
+#Create S3 buckets for logging and metrics
+resource "aws_s3_bucket" "bucket1" {
+  bucket = var.loki_bucket 
+
+  tags = {
+    Name        = "asemjen"
+    Environment = "Dev"
+    email = "anna.semjen@datastax.com"
+
+  }
+}
+
+resource "aws_s3_bucket" "bucket2" {
+  bucket = var.mimir_bucket 
+
+  tags = {
+    Name        = "asemjen"
+    Environment = "Dev"
+    email = "anna.semjen@datastax.com"
+    
+  }
+}
+
+#policy for the service account that's been created to read and write the s3 buckets 
+data "aws_iam_policy_document" "s3_policy" {
+  statement {
+    sid = "1"
+    effect = "Allow"
+    actions = [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+    ]
+
+    resources = [
+                "arn:aws:s3:::${var.mimir_bucket}",
+                "arn:aws:s3:::${var.mimir_bucket}/*",
+                "arn:aws:s3:::${var.loki_bucket}",
+                "arn:aws:s3:::${var.loki_bucket}/*"
+                
+    ]
+  }
+}
+resource "aws_iam_policy" "s3_policy_json" {
+  name   = "access_loki_and_mimir"
+  path   = "/"
+  policy = data.aws_iam_policy_document.s3_policy.json
+}
+
+
+resource "aws_iam_role_policy_attachment" "db-node-group-attach-s3-policy" {
+  role       = module.eks.eks_managed_node_groups.one.iam_role_name
+  policy_arn = aws_iam_policy.s3_policy_json.arn
+  #depends_on = [module.eks.eks_managed_node_groups.one.name]
+}
+
+
+resource "aws_iam_role_policy_attachment" "platform-node-group-attach-s3-policy" {
+  role       = module.eks.eks_managed_node_groups.two.iam_role_name
+  policy_arn = aws_iam_policy.s3_policy_json.arn
+  #depends_on = [module.eks.eks_managed_node_groups.one.name]
+}
+
+
+# This is calling out on the host computer to Kubernetes - this sets this cluster on the host machine to be in the current context - if you don't have Kubernetes installed this will fail 
+resource "null_resource" "kubectl" {
+    provisioner "local-exec" {
+        command = "aws eks --region ${var.region} update-kubeconfig --name ${local.cluster_name}"
+        
+    }
+    depends_on = [module.eks.cluster_name]
 }

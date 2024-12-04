@@ -1,0 +1,305 @@
+# -- Determines if the mission-control-operator should be installed as the control plane
+# or if it's simply in a secondary cluster waiting to be promoted
+controlPlane: true
+
+disableCertManagerCheck: false
+
+image:
+  registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+  repository: mission-control
+  pullPolicy: IfNotPresent
+  tag: v1.6.2
+
+imageConfigs:
+  registryOverride: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+  reaper:
+    repository: cassandra-reaper
+  medusa:
+    repository: medusa
+
+# -- Node affinity for operator pod assignment.
+allowOperatorsOnDatabaseNodes: false
+
+client:
+  # -- Automatically handle CRD upgrades
+  manageCrds: true
+  image:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: k8ssandra-client
+    tag: mission-control-1.6.2
+
+# -- Configuration of the job that runs at installation time to patch the conversion webhook in the CRD.
+crdPatchJob:
+  image:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: kubectl
+    tag: 1.30.1
+
+ui:
+  enabled: true
+  # -- Base URL that client browsers will use to access the UI.
+  # If Dex only uses static passwords and/or the LDAP connector, this can be left empty, and the UI will work via any
+  # routable URL.
+  # If Dex uses an external provider (e.g. OIDC), this must be set, and the UI can only be accessed via this canonical
+  # URL.
+  baseUrl: ''
+  image:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: mission-control-ui
+    tag: v1.6.2
+  service:
+    nodePort: 30880
+  https:
+    enabled: true
+
+
+# https://github.com/grafana/helm-charts/blob/main/charts/grafana/values.yaml
+grafana:
+  enabled: true
+  imageRegistry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+  image:
+    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/grafana/grafana
+    tag: latest
+  sidecar:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/k8s-sidecar
+      tag: 1.24.3
+  downloadDashboardsImage:
+    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/curlimages/curl
+  initChownData:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/busybox
+  plugins: []
+
+# https://github.com/k8ssandra/k8ssandra-operator/blob/main/charts/k8ssandra-operator/values.yaml
+k8ssandra-operator:
+  image:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: k8ssandra-operator
+  cass-operator:
+    image:
+      registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+      repository: cass-operator
+    imageConfig:
+      systemLogger: 111708290731.dkr.ecr.us-east-2.amazonaws.com/system-logger:v1.22.4
+      configBuilder: 111708290731.dkr.ecr.us-east-2.amazonaws.com/datastax/cass-config-builder:1.0-ubi8
+      k8ssandraClient: 111708290731.dkr.ecr.us-east-2.amazonaws.com/k8ssandra/k8ssandra-client:v0.5.0
+
+loki:
+  enabled: true
+  kubectlImage:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: loki
+
+  sidecar:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/k8s-sidecar
+  global:
+    image:
+      registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+  minio:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/minio
+    mcImage:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mc
+  loki:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: loki
+    
+    storage:
+      type: "s3"
+      s3:
+        region: us-east-2
+      bucketNames:
+        chunks: "${loki_bucket}"
+    limits_config:
+      retention_period: 7d
+  read:
+    persistence:
+      enabled: true
+      size: 10Gi
+    replicas: 1
+  write:
+    persistence:
+      enabled: true
+      size: 10Gi
+    replicas: 1
+  backend:
+    replicas: 1
+
+mimir:
+  alertmanager:
+    enabled: true
+    extraArgs:
+      alertmanager-storage.backend: local
+      alertmanager-storage.local.path: /etc/alertmanager/config
+      alertmanager.configs.fallback: /etc/alertmanager/config/default.yml
+      alertmanager.sharding-ring.replication-factor: "2"
+    extraVolumeMounts:
+    - mountPath: /etc/alertmanager/config
+      name: alertmanager-config
+    - mountPath: /alertmanager
+      name: alertmanager-config-tmp
+    extraVolumes:
+    - name: alertmanager-config
+      secret:
+        secretName: alertmanager-config
+    - emptyDir: {}
+      name: alertmanager-config-tmp
+    persistentVolume:
+      accessModes:
+      - ReadWriteOnce
+      enabled: "1"
+      size: 10Gi
+    replicas: "2"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  ingester:
+    extraArgs:
+      ingester.max-global-series-per-user: "0"
+      ingester.ring.replication-factor: "1"
+    persistentVolume:
+      size: 64Gi
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+  store_gateway:
+    persistentVolume:
+      size: 64Gi
+      enabled: "1"
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  compactor:
+    extraArgs:
+      compactor.blocks-retention-period: 30d
+    persistentVolume:
+      enabled: "1"
+      size: 64Gi
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  ruler:
+    enabled: true
+    extraArgs:
+      ingester.ring.replication-factor: "1"
+      ruler-storage.backend: local
+      ruler-storage.local.directory: /etc/rules
+      ruler.alertmanager-url: http://mission-control-mimir-alertmanager:8080/alertmanager
+      ruler.query-frontend.address: mission-control-mimir-query-frontend:9095
+    extraVolumeMounts:
+    - mountPath: /etc/rules/anonymous
+      name: ruler-config
+    extraVolumes:
+    - configMap:
+        defaultMode: 420
+        name: ruler-config
+      name: ruler-config
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  distributor:
+    extraArgs:
+      ingester.ring.replication-factor: "1"
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  image:
+    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mimir
+  memcached:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/memcached
+  memcachedExporter:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/prom/memcached-exporter
+  nginx:    
+    image:
+      registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+      repository: nginx-unprivileged
+      tag: 1.24-alpine
+  gateway:
+    nginx:
+      image:
+        registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+        repository: nginx-unprivileged
+        tag: 1.24-alpine
+  enterprise:
+    image:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/grafana/enterprise-metrics
+    mcImage:
+      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mc
+  mimir:
+    structuredConfig:
+      activity_tracker:
+        filepath: /data/activity.log
+      blocks_storage:
+        backend: s3
+        bucket_store:
+          sync_dir: /data/tsdb-sync
+        s3:
+          #access_key_id: <AWS ACCESS KEY ID>
+          bucket_name: "${mimir_bucket}"
+          #endpoint: s3.AWS REGION.amazonaws.com
+          insecure: false
+          #secret_access_key: <AWS SECRET ACCESS KEY>
+        tsdb:
+          dir: /data/tsdb
+      limits:
+        ingestion_burst_size: 100000
+        ingestion_rate: 50000
+        max_label_names_per_series: 120
+        out_of_order_time_window: 5m
+
+agent:
+  image:
+    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/vector
+
+aggregator:
+  image:
+    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/vector
+
+replicated:
+  enabled: false
+  images:
+    replicated-sdk: 111708290731.dkr.ecr.us-east-2.amazonaws.com/replicated-sdk:v1.0.0-beta.14
+
+kube-state-metrics:
+  image:
+    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
+    repository: kube-state-metrics
+
+dex:
+  image:
+    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mission-control-dex
+  config:
+    enablePasswordDB: true
+    staticPasswords:
+      - email: admin@example.com
+        hash: "$2y$10$B8QcQRQEA5Uc0ggpKFgV0OfalYK6QKoSDvFBgh97bX1LHp/McAv7G"
+        username: admin
+        userID: "USER_ID"

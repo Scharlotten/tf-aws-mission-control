@@ -71,25 +71,19 @@ module "eks" {
 
   eks_managed_node_groups = {
     one = { 
-      #iam_role_arn = aws_iam_role.db-role.arn
       name = "database"
-
-      instance_types = [var.instance_type_db]
-    
+      instance_types = [var.instance_type_db]    
       min_size     = 3
       max_size     = 5
-      desired_size = 3
-      
+      desired_size = 3     
        labels = {
        "mission-control.datastax.com/role" = "database"
   }
     }
-
     two = {
       name = "platform"
  
       instance_types = ["t3.xlarge"]
-
       min_size     = 1
       max_size     = 5
       desired_size = 4
@@ -116,6 +110,7 @@ provider "kubernetes" {
  
 }
 
+# if no default storage class is configured none of the persitent volume claims (pvcs) will mount on the cluster 
 resource "kubernetes_annotations" "set_default_storage" {
   api_version = "storage.k8s.io/v1"
   kind        = "StorageClass"
@@ -131,6 +126,7 @@ resource "kubernetes_annotations" "set_default_storage" {
 
 
 # https://aws.amazon.com/blogs/containers/amazon-ebs-csi-driver-is-now-generally-available-in-amazon-eks-add-ons/ 
+# ebs driver is needed to configure storage
 data "aws_iam_policy" "ebs_csi_policy" {
   arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }

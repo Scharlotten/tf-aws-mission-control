@@ -54,7 +54,6 @@ resource "helm_release" "mission_control_datastax" {
                                       region = "${var.region}"})
     
   ]
-
   depends_on = [helm_release.cert_manager]
 }
 

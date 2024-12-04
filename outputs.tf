@@ -21,7 +21,6 @@ output "cluster_name" {
   value       = module.eks.cluster_name
 }
 
-
 output "arn_for_s3" {
   description = "Kubernetes Cluster Name"
   value       = aws_iam_policy.s3_policy_json.arn

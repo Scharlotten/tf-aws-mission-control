@@ -36,3 +36,15 @@ variable "license_id" {
   type = string
   default = ""
 }
+variable username {
+  description =  "A user name that you wish to use when tagging resources"
+  type = string
+  default = "asemjen"
+}
+
+variable "instance_type_db" {
+  description = "The AWS instance type the DB should be provisioned on"
+  type = string
+  default = "r6i.xlarge"
+ 
+}

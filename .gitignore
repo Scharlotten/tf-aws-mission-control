@@ -25,3 +25,9 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+#ignore lock file
+.terraform.lock.hcl
+
+#plans
+plan1

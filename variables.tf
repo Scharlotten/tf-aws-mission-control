@@ -34,7 +34,7 @@ variable "user_email" {
 variable "license_id" {
   description = "Password for mission-control this is in the license file"
   type = string
-  default = "2gmHTRQro9LdwoahkghX5J1l4En"
+  default = ""
 }
 variable username {
   description =  "A user name that you wish to use when tagging resources"

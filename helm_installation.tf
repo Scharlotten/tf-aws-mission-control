@@ -49,7 +49,7 @@ resource "helm_release" "mission_control_datastax" {
   repository_password = var.license_id
   values = [
 
-    templatefile(${var.helm_override_file}, { loki_bucket = "${var.loki_bucket}"
+    templatefile(var.helm_override_file, { loki_bucket = "${var.loki_bucket}"
                                       mimir_bucket =  "${var.mimir_bucket}"
                                       region = "${var.region}"})
     

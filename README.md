@@ -9,7 +9,7 @@
 [profile default]
 sso_start_url = <your_sso_start_url>
 sso_region = us-west-2
-sso_account_id = 111708290731
+sso_account_id = <sso_account_id>
 sso_role_name = FIELDOPS_FOPS-PRE
 ```
 If you use Okta - you can get the start URL by clicking on AWS SSO - the URL will look something like this `https://d-<sso_id>.awsapps.com/start`

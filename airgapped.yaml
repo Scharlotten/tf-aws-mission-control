@@ -13,9 +13,21 @@ image:
 imageConfigs:
   registryOverride: 111708290731.dkr.ecr.us-east-2.amazonaws.com
   reaper:
-    repository: cassandra-reaper
+    repository: "thelastpickle"
+    name: blablabla
+    tag: 3.6.1
   medusa:
     repository: medusa
+    tag: 0.22.3
+  yq:
+    image: yq
+    tag: 4
+  cqlsh: 
+    repository: cqlsh-pod    
+    tag: 89d62ad5
+  dataApi:
+    repository: stargateio
+    tag: v1.0.9
 
 # -- Node affinity for operator pod assignment.
 allowOperatorsOnDatabaseNodes: false
@@ -58,7 +70,7 @@ grafana:
   enabled: true
   imageRegistry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
   image:
-    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/grafana/grafana
+    repository: grafana/grafana
     tag: latest
   sidecar:
     image:
@@ -82,49 +94,53 @@ k8ssandra-operator:
       repository: cass-operator
     imageConfig:
       systemLogger: 111708290731.dkr.ecr.us-east-2.amazonaws.com/system-logger:v1.22.4
-      configBuilder: 111708290731.dkr.ecr.us-east-2.amazonaws.com/datastax/cass-config-builder:1.0-ubi8
+      configBuilder: 111708290731.dkr.ecr.us-east-2.amazonaws.com/cass-config-builder:1.0-ubi8
       k8ssandraClient: 111708290731.dkr.ecr.us-east-2.amazonaws.com/k8ssandra/k8ssandra-client:v0.5.0
 
 loki:
   enabled: true
-  kubectlImage:
-    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
-    repository: loki
-
-  sidecar:
-    image:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/k8s-sidecar
-  global:
-    image:
-      registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
-  minio:
-    image:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/minio
-    mcImage:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mc
   loki:
-    registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
-    repository: loki
-    
     storage:
-      type: "s3"
-      s3:
-        region: us-east-2
       bucketNames:
         chunks: "${loki_bucket}"
-    limits_config:
-      retention_period: 7d
+      s3:
+        #accessKeyId: <AWS ACCESS KEY ID>
+        endpoint: s3.${region}.amazonaws.com
+        insecure: false
+        region: "${region}"
+        s3: s3.${region}.amazonaws.com
+        s3ForcePathStyle: false
+        # secretAccessKey: <AWS ACCESS SECRET KEY>
+      type: s3
   read:
+    affinity: |
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: mission-control.datastax.com/role
+                  operator: In
+                  values: ["platform"]
     persistence:
       enabled: true
       size: 10Gi
+      storageClassName: ""
     replicas: 1
   write:
     persistence:
       enabled: true
       size: 10Gi
+      storageClassName: ""
     replicas: 1
   backend:
+    affinity: |
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: mission-control.datastax.com/role
+                  operator: In
+                  values: ["platform"]
     replicas: 1
 
 mimir:
@@ -171,47 +187,15 @@ mimir:
       requests:
         cpu: 100m
         memory: 128Mi
-
   store_gateway:
     persistentVolume:
       size: 64Gi
-      enabled: "1"
-    replicas: "1"
-    resources:
-      limits:
-        memory: 2Gi
-      requests:
-        cpu: 100m
-        memory: 128Mi
   compactor:
     extraArgs:
       compactor.blocks-retention-period: 30d
     persistentVolume:
       enabled: "1"
       size: 64Gi
-    replicas: "1"
-    resources:
-      limits:
-        memory: 2Gi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  ruler:
-    enabled: true
-    extraArgs:
-      ingester.ring.replication-factor: "1"
-      ruler-storage.backend: local
-      ruler-storage.local.directory: /etc/rules
-      ruler.alertmanager-url: http://mission-control-mimir-alertmanager:8080/alertmanager
-      ruler.query-frontend.address: mission-control-mimir-query-frontend:9095
-    extraVolumeMounts:
-    - mountPath: /etc/rules/anonymous
-      name: ruler-config
-    extraVolumes:
-    - configMap:
-        defaultMode: 420
-        name: ruler-config
-      name: ruler-config
     replicas: "1"
     resources:
       limits:
@@ -229,59 +213,21 @@ mimir:
       requests:
         cpu: 100m
         memory: 128Mi
-  image:
-    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mimir
-  memcached:
-    image:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/memcached
-  memcachedExporter:
-    image:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/prom/memcached-exporter
-  nginx:    
-    image:
-      registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
-      repository: nginx-unprivileged
-      tag: 1.24-alpine
-  gateway:
-    nginx:
-      image:
-        registry: 111708290731.dkr.ecr.us-east-2.amazonaws.com
-        repository: nginx-unprivileged
-        tag: 1.24-alpine
-  enterprise:
-    image:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/grafana/enterprise-metrics
-    mcImage:
-      repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mc
   mimir:
     structuredConfig:
       activity_tracker:
         filepath: /data/activity.log
-      blocks_storage:
-        backend: s3
-        bucket_store:
-          sync_dir: /data/tsdb-sync
-        s3:
-          #access_key_id: <AWS ACCESS KEY ID>
-          bucket_name: "${mimir_bucket}"
-          #endpoint: s3.AWS REGION.amazonaws.com
-          insecure: false
-          #secret_access_key: <AWS SECRET ACCESS KEY>
-        tsdb:
-          dir: /data/tsdb
-      limits:
-        ingestion_burst_size: 100000
-        ingestion_rate: 50000
-        max_label_names_per_series: 120
-        out_of_order_time_window: 5m
+
 
 agent:
   image:
     repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/vector
+    tag: 0.39.0-distroless-libc
 
 aggregator:
   image:
     repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/vector
+    tag: 0.39.0-distroless-libc
 
 replicated:
   enabled: false
@@ -294,12 +240,10 @@ kube-state-metrics:
     repository: kube-state-metrics
 
 dex:
-  image:
-    repository: 111708290731.dkr.ecr.us-east-2.amazonaws.com/mission-control-dex
   config:
     enablePasswordDB: true
     staticPasswords:
       - email: admin@example.com
         hash: "$2y$10$B8QcQRQEA5Uc0ggpKFgV0OfalYK6QKoSDvFBgh97bX1LHp/McAv7G"
         username: admin
-        userID: "USER_ID"
+        userID: "my_userterraform state"

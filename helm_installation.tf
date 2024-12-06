@@ -42,14 +42,14 @@ resource "helm_release" "mission_control_datastax" {
   name        = "mission-control"
   namespace   = "mission-control"
   repository  = "oci://registry.replicated.com/mission-control"
-  # version     = "1.6.2"
+  version     = "1.6.2"
   chart       = "mission-control"
   create_namespace = true
   repository_username = var.user_email
   repository_password = var.license_id
   values = [
 
-    templatefile("./override.yaml", { loki_bucket = "${var.loki_bucket}"
+    templatefile(${var.helm_override_file}, { loki_bucket = "${var.loki_bucket}"
                                       mimir_bucket =  "${var.mimir_bucket}"
                                       region = "${var.region}"})
     

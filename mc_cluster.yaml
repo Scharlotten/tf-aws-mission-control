@@ -1,0 +1,67 @@
+apiVersion: missioncontrol.datastax.com/v1beta2
+kind: MissionControlCluster
+metadata:
+  annotations:
+    missioncontrol.datastax.com/created-by: 'true'
+  name: demo
+  namespace: nbs-2vx6521l
+spec:
+  createIssuer: true
+  dataApi:
+    enabled: true
+  encryption:
+    internodeEncryption:
+      certs:
+        createCerts: true
+      enabled: true
+  k8ssandra:  
+    auth: true
+    cassandra:
+      config:
+        cassandraYaml: {}
+        dseYaml: {}
+        jvmOptions:
+          gc: G1GC
+          heapSize: 2Gi
+      datacenters:
+        - config:
+            cassandraYaml: {}
+            dseYaml: {}
+          datacenterName: dc-1
+          dseWorkloads:
+            graphEnabled: false
+            searchEnabled: false
+          k8sContext: ''
+          metadata:
+            name: demo-dc-1
+            pods: {}
+            services:
+              additionalSeedService: {}
+              allPodsService: {}
+              dcService: {}
+              nodePortService: {}
+              seedService: {}
+          networking: {}
+          perNodeConfigMapRef: {}
+          racks:
+            - name: rc1
+              nodeAffinityLabels: {}
+          size: 3
+          stopped: false
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 4Gi
+      serverImage: ''
+      serverType: dse
+      serverVersion: 6.9.2
+      storageConfig:
+        cassandraDataVolumeClaimSpec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+          storageClassName: gp2
+      superuserSecretRef:
+        name: demo-superuser

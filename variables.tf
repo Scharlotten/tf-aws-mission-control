@@ -48,3 +48,9 @@ variable "instance_type_db" {
   default = "r6i.xlarge"
  
 }
+
+variable "helm_override_file" {
+  description = "the extra flie to overwrite default values in the helm installation"
+  type = string
+  default = "./override.yaml"
+}

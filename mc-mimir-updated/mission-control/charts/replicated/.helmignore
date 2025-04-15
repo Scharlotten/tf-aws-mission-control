@@ -1,6 +1,0 @@
-scripts/
-Makefile
-/*.yaml.tmpl
-/.git
-/.github
-/replicated-*.tgz

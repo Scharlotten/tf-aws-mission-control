@@ -1,9 +1,0 @@
-# This file is used to generate a self-signed root CA certificate
-# and key pair. These manifests will be deployed if the root CA isn't provided in the MC config.
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: selfsigned
-  namespace: mission-control
-spec:
-  selfSigned: {}

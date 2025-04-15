@@ -34,3 +34,4 @@ plan1
 
 # random files
 kube-job-eks.yaml
+variables.tf

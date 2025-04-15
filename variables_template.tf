@@ -28,13 +28,13 @@ variable "mimir_bucket" {
 variable "user_email" {
   description = "user email used for registration when submitting request for MC"
   type = string
-  default = "anna.semjen@datastax.com"
+  default = "your_email@datastax.com"
 }
 
 variable "license_id" {
   description = "Password for mission-control this is in the license file"
   type = string
-  default = "2gmHTRQro9LdwoahkghX5J1l4En"
+  default = "your_password"
 }
 variable username {
   description =  "A user name that you wish to use when tagging resources"

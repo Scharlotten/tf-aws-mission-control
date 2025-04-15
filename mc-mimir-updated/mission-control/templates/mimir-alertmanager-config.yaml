@@ -1,0 +1,9 @@
+{{ if .Values.mimir.enabled -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-config
+  labels: {{ include "k8ssandra-common.labels" . | indent 4 }}
+data:
+  default.yml: {{ .Values.mimir.alertmanagerConfig | b64enc | quote }}
+{{- end }}

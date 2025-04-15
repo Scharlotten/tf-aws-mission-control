@@ -1,0 +1,119 @@
+{{- $podSecurityContext := .Values.podSecurityContext }}
+{{ if eq (include "replicated.isOpenShift" .) "true" }}
+  {{ if eq ($podSecurityContext.runAsUser | int) 1001 }}
+    {{- $_ := unset $podSecurityContext "runAsUser" }}
+  {{- end }}
+  {{ if eq ($podSecurityContext.runAsGroup | int) 1001 }}
+    {{- $_ := unset $podSecurityContext "runAsGroup" }}
+  {{- end }}
+  {{ if eq ($podSecurityContext.fsGroup | int) 1001 }}
+    {{- $_ := unset $podSecurityContext "fsGroup" }}
+  {{- end }}
+  {{ if eq ($podSecurityContext.supplementalGroups | len) 1 }}
+    {{ if eq (index $podSecurityContext.supplementalGroups 0 | int) 1001 }}
+      {{- $_ := unset $podSecurityContext "supplementalGroups" }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    {{- include "replicated.labels" . | nindent 4 }}
+  name: {{ include "replicated.deploymentName" . }}
+  namespace: {{ include "replicated.namespace" . | quote }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "replicated.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/replicated-secret: {{ include (print $.Template.BasePath "/replicated-secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "replicated.labels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $podSecurityContext.enabled }}
+      securityContext: {{- omit $podSecurityContext "enabled" | toYaml | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: replicated
+        secret:
+          secretName: {{ include "replicated.secretName" . }}
+      containers:
+      - name: replicated
+        image: {{ index .Values.images "replicated-sdk" }}
+        imagePullPolicy: IfNotPresent
+        {{- if .Values.containerSecurityContext.enabled }}
+        securityContext: {{- omit .Values.containerSecurityContext "enabled" | toYaml | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: replicated
+          mountPath: /etc/replicated/config.yaml
+          readOnly: true
+          subPath: config.yaml
+        env:
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        - name: REPLICATED_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: REPLICATED_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DISABLE_OUTBOUND_CONNECTIONS
+          value: {{ .Values.isAirgap | default "false" | quote }}
+        - name: IS_HELM_MANAGED
+          value: "true"
+        - name: HELM_RELEASE_NAME
+          value: {{ .Release.Name }}
+        - name: HELM_RELEASE_NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: HELM_PARENT_CHART_URL
+          value: {{ .Values.parentChartURL | default "" | quote }}
+        - name: HELM_DRIVER
+          value: secret # TODO: support other drivers
+        - name: REPLICATED_SECRET_NAME
+          value: {{ include "replicated.secretName" . }}
+        - name: REPLICATED_DEPLOYMENT_NAME
+          value: {{ include "replicated.deploymentName" . }}
+        - name: REPLICATED_CONFIG_FILE
+          value: /etc/replicated/config.yaml
+        {{- if (.Values.integration).licenseID }}
+        - name: REPLICATED_INTEGRATION_LICENSE_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "replicated.secretName" . }}
+              key: integration-license-id
+        {{- end }}
+        ports:
+        - containerPort: 3000
+          name: http
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 3000
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+      restartPolicy: Always
+      serviceAccountName: {{ include "replicated.serviceAccountName" . }}

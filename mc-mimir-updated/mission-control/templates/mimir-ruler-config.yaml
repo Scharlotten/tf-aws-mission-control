@@ -1,0 +1,125 @@
+{{- if .Values.mimir.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+metadata:
+  # Note, since the restapi expects this name to be hardcoded, we can't have multiple Helm releases
+  name: ruler-config
+  labels: {{ include "k8ssandra-common.labels" . | indent 4 }}
+data:
+  default-rules.yml: |-
+    {{`groups:
+      - name: Availability
+        rules:
+          - alert: node-down-30
+            expr: rate(org_apache_cassandra_metrics_thread_pools_completed_tasks{pool_name="GossipStage", pool_type="internal"}[1m:30s]) <= 0
+            for: 30m
+            labels:
+              severity: error
+            annotations:
+              summary: Node down for more than 30 minutes
+              description: "Node {{ $labels.pod_name }} is down in cluster {{ $labels.cluster }}"
+          - alert: node-down-10
+            expr: rate(org_apache_cassandra_metrics_thread_pools_completed_tasks{pool_name="GossipStage", pool_type="internal"}[1m:30s]) <= 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: Node down for more than 10 minutes
+              description: "Node {{ $labels.pod_name }} is down in cluster {{ $labels.cluster }}"
+          - alert: node-down-multiple-racks
+            expr: count(group(rate(org_apache_cassandra_metrics_thread_pools_completed_tasks{pool_name="GossipStage", pool_type="internal"}[1m:30s]) <= 0) by (cluster, datacenter, rack)) by (cluster, datacenter) > 1
+            for: 1m
+            labels:
+              severity: error
+            annotations:
+              summary: Nodes are down in multiple racks
+              description: "You have nodes down in several racks at the same time in cluster {{ $labels.cluster }} and datacenter {{ $labels.datacenter }}"
+      - name: Resources
+        rules:
+          - alert: high-cpu
+            expr: max by (cluster, host) (1 - (sum by (host) (rate(host_cpu_seconds_total{mode="idle"}[1m:30s])) / sum by (host) (rate(host_cpu_seconds_total{}[1m:30s])))) >= 0.80
+            for: 5m
+            labels:
+              severity: error
+            annotations:
+              summary: High CPU usage for more than 5 minutes
+              description: "CPU usage was higher than 80% for more than 5 minutes on node {{ $labels.pod_name }}"
+          - alert: low-disk-25
+            expr: max by(host, device) (host_filesystem_used_ratio{}) > 0.75
+            for: 1m
+            labels:
+              severity: error
+            annotations:
+              summary: Disk space is getting low on a node
+              description: "Available disk space is lower than 25% on device {{ $labels.device }} of node {{ $labels.host }}"
+          - alert: low-disk-50
+            expr: max by(host, device) (host_filesystem_used_ratio{}) <= 0.75 > 0.50
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: Disk space is getting low on a node
+              description: "Available disk space is lower than 50% on device {{ $labels.device }} of node {{ $labels.host }}"
+          - alert: high-load-32
+            expr: host_load5{} > 32
+            for: 1m
+            labels:
+              severity: error
+            annotations:
+              summary: One node is under high load
+              description: "Node {{ $labels.host }} had been under high load for more than 5 minutes"
+          - alert: high-load-20
+            expr: host_load5{} > 20 <= 32
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: One node is under high load
+              description: "Node {{ $labels.host }} had been under high load for more than 5 minutes"
+      - name: Messages
+        rules:
+          - alert: dropped-messages-10k
+            expr: group by(pod_name, message_type) (rate(org_apache_cassandra_metrics_dropped_message_dropped_total{}[5m])) >= 10000
+            for: 1m
+            labels:
+              severity: error
+            annotations:
+              summary: High number of dropped messages
+              description: "Node {{ $labels.pod_name }} has dropped a high number of messages of type {{ $labels.message_type }}"
+          - alert: dropped-messages-1k
+            expr: group by(pod_name, message_type) (rate(org_apache_cassandra_metrics_dropped_message_dropped_total{}[5m])) > 1000 < 10000
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: High number of dropped messages
+              description: "Node {{ $labels.pod_name }} has dropped a high number of messages of type {{ $labels.message_type }}"
+      - name: Infrastructure
+        rules:
+          - alert: unavailable-replicas-deployment
+            expr: kube_deployment_status_replicas_unavailable > 0
+            for: 10m
+            labels:
+              severity: error
+            annotations:
+              summary: Unavailable replicas in a deployment
+              description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has {{ $value }} unavailable replicas"
+          - alert: unavailable-replicas-statefulset
+            expr: kube_statefulset_status_replicas != kube_statefulset_status_replicas_available
+            for: 10m
+            labels:
+              severity: error
+            annotations:
+              summary: Unavailable replicas in a statefulset
+              description: "Statefulset {{ $labels.statefulset }} in namespace {{ $labels.namespace }} has {{ $value }} unavailable replicas"
+          - alert: unhealthy-pods
+            expr: kube_pod_status_phase{phase!~"Running|Succeeded"} > 0
+            for: 10m
+            labels:
+              severity: error
+            annotations:
+              summary: Unhealthy pods
+              description: "There are {{ $value }} unhealthy pods in namespace {{ $labels.namespace }}"`}}
+binaryData: {}
+{{- end}}

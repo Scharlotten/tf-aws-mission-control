@@ -1,0 +1,16 @@
+{{- if and .Values.ui.enabled .Values.ui.service.nodePort -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "k8ssandra-common.fullname" . }}-ui
+  labels: {{ include "k8ssandra-common.labels" . | indent 4 }}
+spec:
+  selector:
+    app: mission-control-ui
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: {{ .Values.ui.service.nodePort }}
+  type: NodePort
+{{- end}}

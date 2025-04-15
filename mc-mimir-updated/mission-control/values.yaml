@@ -1,0 +1,517 @@
+global:
+  clusterScoped: true
+  replicated:
+    channelName: Stable
+    customerEmail: anna.semjen@datastax.com
+    customerName: Datastax - Anna Semjen
+    dockerconfigjson: eyJhdXRocyI6eyJwcm94eS5yZXBsaWNhdGVkLmNvbSI6eyJhdXRoIjoiTW1kdFNGUlNVWEp2T1V4a2QyOWhhR3RuYUZnMVNqRnNORVZ1T2pKbmJVaFVVbEZ5YnpsTVpIZHZZV2hyWjJoWU5Vb3hiRFJGYmc9PSJ9LCJyZWdpc3RyeS5yZXBsaWNhdGVkLmNvbSI6eyJhdXRoIjoiTW1kdFNGUlNVWEp2T1V4a2QyOWhhR3RuYUZnMVNqRnNORVZ1T2pKbmJVaFVVbEZ5YnpsTVpIZHZZV2hyWjJoWU5Vb3hiRFJGYmc9PSJ9fX0=
+    licenseFields:
+      expires_at:
+        name: expires_at
+        title: Expiration
+        description: License Expiration
+        value: ""
+        valueType: String
+        signature:
+          v1: B7EkE0P0KjAV/pzb87QIaQdwxBH1WdKXO6BjjEl0WnmnF8KCFKX/x3hrpqgxc1DaApYe/S1nGdsrm/9FkJdoNyfOhEKMRN/gHKureGPnk3GyyyAtXP1guAGYC1SJ2VYsPXQtYEAYU/+ghQlNNyxg5zxPAI5qUrMdLWgSMmEh5k/jNUQivaCcM8zKPQMV4obhLDH3gpghfRY2Yyaw9oJr/MsOSOAQtNpEsJOmZWp6DruyHtY60yIal6Y6zfXE+T6QfHo+KEpl2kiKDocaOoOwaLbROkcu/WGFM6B3tTe7mPoheBSTJWpg8ODaTI3O3gmEWZG1O+wS8x+pv6JYc8l/gg==
+    licenseID: 2gmHTRQro9LdwoahkghX5J1l4En
+    licenseType: community
+# -- A name in place of the chart name which is used in the metadata.name of
+# objects created by this chart.
+nameOverride: ""
+# -- A name in place of the value used for metadata.name in objects created by
+# this chart. The default value has the form releaseName-chartName.
+fullnameOverride: ""
+# -- Labels to be added to all deployed resources.
+commonLabels: {}
+# -- Sets the number of mission-control-operator pods.
+replicaCount: 1
+# -- Determines if the mission-control-operator should be installed as the control plane
+# or if it's simply in a secondary cluster waiting to be promoted
+controlPlane: true
+disableCertManagerCheck: true
+# Sets properties for the mission-control-operator container
+image:
+  # -- Container registry containing the repository where the image resides
+  registry: cr.dtsx.io
+  # -- Docker repository for mission-control-operator
+  repository: datastax/mission-control
+  # -- Pull policy for the operator container
+  pullPolicy: IfNotPresent
+  # -- Tag of the mission-control-operator image to pull from image.repository
+  tag: v1.6.2
+# -- References to secrets to use when pulling images. See:
+# https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+# imagePullSecret: secretName
+# -- Define overrides some of the images used in k8ssandra-operator
+imageConfigs: {}
+#registryOverride: docker.io
+#reaper:
+#  repository: thelastpickle/cassandra-reaper
+#medusa:
+#  repository: k8ssandra/medusa
+#yq:
+#  image: mikefarah/yq:4
+#cqlsh:
+#  repository: proxy/mission-control/559669398656.dkr.ecr.us-west-2.amazonaws.com/mission-control
+#dataApi
+#  repository: stargateio/data-api
+
+serviceAccount:
+  # -- Annotations to add to the service account.
+  annotations: {}
+# -- Annotations for the mission-control-operator pod.
+podAnnotations: {}
+# -- PodSecurityContext for the mission-control-operator pod. See:
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+podSecurityContext: {}
+securityContext:
+  # -- Run mission-control-operator container as non-root user
+  runAsNonRoot: true
+  # -- Group for the user running the mission-control-operator container / process
+  runAsGroup: 65534
+  # -- User for running the mission-control-operator container / process
+  runAsUser: 65534
+  # -- Run mission-control-operator container having read-only root file system permissions.
+  readOnlyRootFilesystem: true
+# -- Resources requests and limits for the mission-control-operator pod. We usually
+# recommend not to specify default resources and to leave this as a conscious
+# choice for the user. This also increases chances charts run on environments
+# with little resources, such as Minikube. If you want to specify resources, add
+# `requests` and `limits` for `cpu` and `memory` while removing the existing
+# `{}`
+resources: {}
+# -- Node labels for operator pod assignment.
+# Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+#
+nodeSelector: {}
+# -- Node tolerations for server scheduling to nodes with taints.
+# Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+#
+tolerations: []
+# -- Node affinity for operator pod assignment.
+allowOperatorsOnDatabaseNodes: true
+client:
+  # -- Automatically handle CRD upgrades
+  manageCrds: true
+  image:
+    # -- Container registry containing the repository where the image resides
+    registry: cr.k8ssandra.io
+    # -- Docker repository for k8ssandra-client
+    repository: k8ssandra/k8ssandra-client
+    # -- Pull policy for the operator container
+    pullPolicy: IfNotPresent
+    # -- Tag of the k8ssandra-client image to pull from image.repository
+    tag: mission-control-1.6.2
+  # -- HTTPS proxy address to use for communication to helm.k8ssandra.io
+  #proxy:
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+  podSecurityContext:
+    runAsNonRoot: true
+# -- Configuration of the job that runs at installation time to patch the conversion webhook in the CRD.
+crdPatchJob:
+  image:
+    # -- Docker repository for the kubectl image
+    repository: bitnami/kubectl
+    # -- Tag of the kubectl image
+    tag: 1.30.1
+  securityContext:
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+ui:
+  enabled: true
+  # -- Base URL that client browsers will use to access the UI.
+  # If Dex only uses static passwords and/or the LDAP connector, this can be left empty, and the UI will work via any
+  # routable URL.
+  # If Dex uses an external provider (e.g. OIDC), this must be set, and the UI can only be accessed via this canonical
+  # URL.
+  baseUrl: ''
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+  podSecurityContext:
+    runAsNonRoot: true
+  image:
+    # -- Image registry for the ui
+    registry: cr.dtsx.io
+    # -- Image repository for the ui
+    repository: datastax/mission-control-ui
+    # -- Tag of the client image to pull from
+    tag: v1.6.2
+    # -- Pull policy for the client container
+    pullPolicy: IfNotPresent
+  service:
+    nodePort: 30880
+  https:
+    # -- Enable HTTPS for the UI using self signed certificate
+    enabled: true
+  # URL of a Prometheus-like system to read metrics from
+  metricsUrl: http://mission-control-mimir-nginx/prometheus
+dex:
+  image:
+    repository: cr.dtsx.io/datastax/mission-control-dex
+    tag: v1.6.2
+  config:
+    issuer: http://mission-control-dex:5556/dex
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+    web:
+      http: 127.0.0.1:5556
+    telemetry:
+      http: 127.0.0.1:5558
+    grpc:
+      addr: 127.0.0.1:5557
+    staticClients:
+      - id: mission-control-ui
+        redirectURIs:
+          - '/v1/auth/callback'
+        name: 'Mission Control GUI'
+        secret: ZXhhbXBsZS1hcHAtc2VjcmV0
+    frontend:
+      issuer: Mission Control
+    # --- Test settings, generates test admin user
+    enablePasswordDB: true
+    staticPasswords:
+      - email: admin@example.com
+        hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+        username: admin
+        userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+  service:
+    type: ClusterIP
+    ports:
+      http:
+        port: 5556
+agent:
+  enabled: true
+  role: Agent
+  persistence:
+    enabled: false
+    hostPath:
+      enabled: false
+  customConfig:
+    data_dir: /vector-data-dir
+    api:
+      enabled: true
+      address: 127.0.0.1:8686
+      playground: false
+    sources:
+      kubernetes_logs:
+        type: kubernetes_logs
+        extra_label_selector: "!cassandra.datastax.com/rack"
+    transforms:
+      # - parse the log line into discrete fields
+      # - rename pod fields to align with how they're called in the DSE logs
+      structured_logs:
+        type: remap
+        inputs: [kubernetes_logs]
+        source: |-
+          if !is_nullish(.message) {
+            structured =
+              parse_klog(.message) ??
+              parse_logfmt(.message) ??
+              {}
+            . |= structured
+          }
+    sinks:
+      vector_aggregator:
+        type: vector
+        inputs: [structured_logs]
+        address: mission-control-aggregator:6000
+aggregator:
+  enabled: true
+  podValuesChecksumAnnotation: true
+  serviceHeadless:
+    enabled: false
+  service:
+    type: NodePort
+    ports:
+      - name: vector
+        protocol: TCP
+        port: 6000
+        targetPort: 6000
+        nodePort: 30600
+  customConfig:
+    data_dir: /vector-data-dir
+    api:
+      enabled: true
+      address: 127.0.0.1:8686
+      playground: false
+    sources:
+      internal_metrics:
+        type: internal_metrics
+      statsd:
+        address: 0.0.0.0:8125
+        mode: tcp
+        type: statsd
+      syslog:
+        address: 0.0.0.0:9000
+        mode: tcp
+        type: syslog
+      vector:
+        address: 0.0.0.0:6000
+        type: vector
+        version: "2"
+      prometheus_push:
+        type: prometheus_remote_write
+        address: 0.0.0.0:9090
+      kube_state_metrics:
+        type: prometheus_scrape
+        endpoints:
+          - "http://mission-control-kube-state-metrics:8080/metrics"
+      cass_operator_metrics:
+        type: prometheus_scrape
+        endpoints:
+          - "http://mission-control-cass-operator-metrics:8080/metrics"
+      mimir-self-monitoring:
+        type: prometheus_scrape
+        endpoints:
+          - http://mission-control-mimir-alertmanager:8080/metrics
+          - http://mission-control-mimir-compactor:8080/metrics
+          - http://mission-control-mimir-distributor:8080/metrics
+          - http://mission-control-mimir-ingester:8080/metrics
+          - http://mission-control-mimir-querier:8080/metrics
+          - http://mission-control-mimir-ruler:8080/metrics
+          - http://mission-control-mimir-query-frontend:8080/metrics
+          - http://mission-control-mimir-query-scheduler:8080/metrics
+          - http://mission-control-mimir-store-gateway:8080/metrics
+    transforms:
+      # Ensure that all fields we are using as Loki labels have defaults. We are dealing with two log sources:
+      # - DSE logs (see `ConfigureVectorForDseDatacenter` in `pkg/k8ssandrautils/k8ssandra_cluster.go`)
+      # - Kubernetes logs (see `kubernetes_logs` source in the Vector agent config)
+      vector_with_defaults:
+        type: remap
+        inputs: ["vector"]
+        source: |-
+          if !exists(.namespace) {
+            if exists(.kubernetes.pod_namespace) {
+              .namespace = del(.kubernetes.pod_namespace)
+            } else {
+              .namespace = "unknown"
+            }
+          }
+          if !exists(.pod_name) {
+            if exists(.kubernetes.pod_name) {
+              .pod_name = del(.kubernetes.pod_name)
+            } else {
+              .pod_name = "unknown"
+            }
+          }
+          if !exists(.container_name) {
+            if exists(.kubernetes.container_name) {
+              .container_name = del(.kubernetes.container_name)
+            } else {
+              .container_name = "unknown"
+            }
+          }
+          if !exists(.file) { .file = "unknown" }
+          if !exists(.cluster) { .cluster = "unknown" }
+          if !exists(.datacenter) { .datacenter = "unknown" }
+          if !exists(.rack) { .rack = "unknown" }
+    sinks:
+      mimir:
+        type: "prometheus_remote_write"
+        inputs: ["vector", "internal_metrics", "kube_state_metrics", "cass_operator_metrics", "mimir-self-monitoring", "prometheus_push", "statsd"]
+        endpoint: "http://mission-control-mimir-nginx/api/v1/push"
+      loki:
+        type: loki
+        inputs: [vector_with_defaults, syslog]
+        endpoint: "http://loki-gateway"
+        tenant_id: anonymous
+        out_of_order_action: accept
+        labels:
+          source_type: '{{ "{{" }} source_type {{ "}}" }}'
+          namespace: '{{ "{{" }} namespace {{ "}}" }}'
+          pod_name: '{{ "{{" }} pod_name {{ "}}" }}'
+          file: '{{ "{{" }} file {{ "}}" }}'
+          cluster: '{{ "{{" }} cluster {{ "}}" }}'
+          datacenter: '{{ "{{" }} datacenter {{ "}}" }}'
+          rack: '{{ "{{" }} rack {{ "}}" }}'
+          container_name: '{{ "{{" }} container_name {{ "}}" }}'
+        encoding:
+          codec: json
+loki:
+  enabled: true
+  # Enable the following when running on openshift
+  #global:
+  #  clusterDomain: cluster.local
+  #  dnsNamespace: openshift-dns
+  #  dnsService: dns-default
+  loki:
+    commonConfig:
+      replication_factor: 1
+    rulerConfig:
+      storage:
+        type: local
+        local:
+          directory: "/var/loki/rules"
+    storage:
+      bucketNames:
+        chunks: my_loki_chunks_bucket
+    compactor:
+      retention_enabled: true
+      working_directory: '/var/loki/retention'
+    limits_config:
+      retention_period: 7d
+  read:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    replicas: 1
+  write:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    replicas: 1
+  backend:
+    replicas: 1
+  monitoring:
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
+    lokiCanary:
+      enabled: false
+    dashboards:
+      enabled: false
+    rules:
+      enabled: false
+    serviceMonitor:
+      enabled: false
+  test:
+    enabled: false
+mimir:
+  enabled: true
+  # Enable the following when running on openshift
+  #global:
+  #  clusterDomain: cluster.local
+  #  dnsNamespace: openshift-dns
+  #  dnsService: dns-default
+  ingester:
+    zoneAwareReplication:
+      enabled: false
+  store_gateway:
+    zoneAwareReplication:
+      enabled: false
+  rollout_operator:
+    enabled: false
+  alertmanagerConfig: |
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'instance']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'default-receiver'
+    receivers:
+      - name: 'default-receiver'
+grafana:
+  enabled: false
+  sidecar:
+    datasources:
+      enabled: true
+    dashboards:
+      enabled: true
+  plugins:
+    - grafana-polystat-panel
+k8ssandra-operator:
+  disableCrdUpgraderJob: true
+  cass-operator:
+    disableCertManagerCheck: true
+replicated:
+  enabled: false
+  appName: Mission Control
+  channelID: 2H67dYyYBUwE2uwmKVJ5IfpTkmA
+  channelName: Stable
+  channelSequence: 17
+  license: |
+    apiVersion: kots.io/v1beta1
+    kind: License
+    metadata:
+        name: datastax-annasemjen
+    spec:
+        appSlug: mission-control
+        channelID: 2H67dYyYBUwE2uwmKVJ5IfpTkmA
+        channelName: Stable
+        channels:
+            - channelID: 2H67dYyYBUwE2uwmKVJ5IfpTkmA
+              channelName: Stable
+              channelSlug: stable
+              endpoint: https://replicated.app
+              isDefault: true
+              isSemverRequired: true
+              replicatedProxyDomain: proxy.replicated.com
+        customerEmail: anna.semjen@datastax.com
+        customerName: Datastax - Anna Semjen
+        endpoint: https://replicated.app
+        entitlements:
+            expires_at:
+                description: License Expiration
+                signature: {}
+                title: Expiration
+                value: ""
+                valueType: String
+        isKotsInstallEnabled: true
+        isSemverRequired: true
+        licenseID: 2gmHTRQro9LdwoahkghX5J1l4En
+        licenseSequence: 1
+        licenseType: community
+        replicatedProxyDomain: proxy.replicated.com
+        signature: eyJsaWNlbnNlRGF0YSI6ImV5SmhjR2xXWlhKemFXOXVJam9pYTI5MGN5NXBieTkyTVdKbGRHRXhJaXdpYTJsdVpDSTZJa3hwWTJWdWMyVWlMQ0p0WlhSaFpHRjBZU0k2ZXlKdVlXMWxJam9pWkdGMFlYTjBZWGd0WVc1dVlYTmxiV3BsYmlKOUxDSnpjR1ZqSWpwN0lteHBZMlZ1YzJWSlJDSTZJakpuYlVoVVVsRnliemxNWkhkdllXaHJaMmhZTlVveGJEUkZiaUlzSW14cFkyVnVjMlZVZVhCbElqb2lZMjl0YlhWdWFYUjVJaXdpWTNWemRHOXRaWEpPWVcxbElqb2lSR0YwWVhOMFlYZ2dMU0JCYm01aElGTmxiV3BsYmlJc0ltTjFjM1J2YldWeVJXMWhhV3dpT2lKaGJtNWhMbk5sYldwbGJrQmtZWFJoYzNSaGVDNWpiMjBpTENKaGNIQlRiSFZuSWpvaWJXbHpjMmx2YmkxamIyNTBjbTlzSWl3aVkyaGhibTVsYkVsRUlqb2lNa2cyTjJSWmVWbENWWGRGTW5WM2JVdFdTalZKWm5CVWEyMUJJaXdpWTJoaGJtNWxiRTVoYldVaU9pSlRkR0ZpYkdVaUxDSmphR0Z1Ym1Wc2N5STZXM3NpWTJoaGJtNWxiRWxFSWpvaU1rZzJOMlJaZVZsQ1ZYZEZNblYzYlV0V1NqVkpabkJVYTIxQklpd2lZMmhoYm01bGJGTnNkV2NpT2lKemRHRmliR1VpTENKamFHRnVibVZzVG1GdFpTSTZJbE4wWVdKc1pTSXNJbWx6UkdWbVlYVnNkQ0k2ZEhKMVpTd2laVzVrY0c5cGJuUWlPaUpvZEhSd2N6b3ZMM0psY0d4cFkyRjBaV1F1WVhCd0lpd2ljbVZ3YkdsallYUmxaRkJ5YjNoNVJHOXRZV2x1SWpvaWNISnZlSGt1Y21Wd2JHbGpZWFJsWkM1amIyMGlMQ0pwYzFObGJYWmxjbEpsY1hWcGNtVmtJanAwY25WbGZWMHNJbXhwWTJWdWMyVlRaWEYxWlc1alpTSTZNU3dpWlc1a2NHOXBiblFpT2lKb2RIUndjem92TDNKbGNHeHBZMkYwWldRdVlYQndJaXdpY21Wd2JHbGpZWFJsWkZCeWIzaDVSRzl0WVdsdUlqb2ljSEp2ZUhrdWNtVndiR2xqWVhSbFpDNWpiMjBpTENKbGJuUnBkR3hsYldWdWRITWlPbnNpWlhod2FYSmxjMTloZENJNmV5SjBhWFJzWlNJNklrVjRjR2x5WVhScGIyNGlMQ0prWlhOamNtbHdkR2x2YmlJNklreHBZMlZ1YzJVZ1JYaHdhWEpoZEdsdmJpSXNJblpoYkhWbElqb2lJaXdpZG1Gc2RXVlVlWEJsSWpvaVUzUnlhVzVuSWl3aWMybG5ibUYwZFhKbElqcDdmWDE5TENKcGMwdHZkSE5KYm5OMFlXeHNSVzVoWW14bFpDSTZkSEoxWlN3aWFYTlRaVzEyWlhKU1pYRjFhWEpsWkNJNmRISjFaWDE5IiwiaW5uZXJTaWduYXR1cmUiOiJleUpzYVdObGJuTmxVMmxuYm1GMGRYSmxJam9pVjNOV1VrdFlhMFUxTUVOdmJrMW9RMU5FUzBsek5uSkVhMUpXYzFOWFZtZ3ZhbFZwYVZKQ1ozSlFiV3hrY1VselRtaFJUa0oyWWk5emRFVjZWR1JSV1M5eVN6VnhlRGRGYlhrMVFYUlJXbXRhZURSaFRrVnNORkpNUXpjdlozWkRkbmt6Tm10NVFrcEpiSEp6UlhWaVNpOVFPVEpNWldGbVFVazFlbFJFUjFOdlVHeHdibVF3ZW5jd1FVNVRkMHRZWlc1WmFtUTBTRXh2VG0xR1F6SnlabWxCYlZaaGRYSjJlbTl3Vm5WMlJWQnJjbEJUUldaNVpURnhjRWhDTmtaWlMyMTNURzV3Y0RGQlNqa3ZiV1pCWlV4Q2FVVm5PVlEwTDJGdE1VRjFkbWhSVTB4UGJ6ZHNOM2xWZEdabmVsaEtRbFZuWjJoQlFXTmpNQ3RVTVVVMWJrRlFNekUyY1RaS09UUmxXVXBMVWpaQlNYcFhSbnBSUjNCd2EyY3JjV1YwWmsxek1WZG1ObkYyVTFnNGJETktVbWhTWkZoNFlVNHdRMGhqVlVwRFRURklLMG8xVFdRclVGWndaazRyYTBWb2IzaHBXR1ozUFQwaUxDSndkV0pzYVdOTFpYa2lPaUl0TFMwdExVSkZSMGxPSUZCVlFreEpReUJMUlZrdExTMHRMVnh1VFVsSlFrbHFRVTVDWjJ0eGFHdHBSemwzTUVKQlVVVkdRVUZQUTBGUk9FRk5TVWxDUTJkTFEwRlJSVUZ4Uld4MFRHZEtLM0E1YlhaVVIwWTNaV0pZWTF4dVkyNHhOMHBGWTNaR04ybEdSRU5RYVUxbGMySnhkRlo0U3pZM1ZWTmFVR1ZuTTFWck9FcEJjVzFDTkdwTGFtZHNlR3BKUVcxeVkzSjFZMEV3Vm1WdFZGeHVOVUpCTjNaTmFGaE9TMnBoZERsSFZtMUlXa3BCZVdGTVlXeGxheXR3ZFhZMVRYbFJPV2swTVVkclQwWlhPVFpGV1RaTFJsbDZPRlJPUVZSUGJreGxlVnh1V0VsVVdUZFBLemRPTlRRNWNuTnpOWGxZU0VWdVJrRmhUbTU2Y1ZsS1dFZFhUSGQwVW5ReFRYcFNaVTB3Y2swMVZ6VTBXV1ZuTkVOUVFsZG1aeXQ1Y2x4dU9YVjBaV1Y1UWxwTUwwaG9PR05HWTFoa1pYZ3JhRkl5VGl0cFFpOTFWemRuZUVoMWVrNVBXSGRJTUVkb1ZWaFNNWEJEVlZBd1ZucFZPWE5oZURkaloxeHViRXBUYUZsdFNXbEdiWGRtTW1Sb2FXNXVZazFwVlRaaVpFNHhkelExVDFwcE9GZHZjVGt3UmxrelVGaE1WRGRRY1dGVldVZHJVSEJTZHpVNFUxUXJSVnh1SzNkSlJFRlJRVUpjYmkwdExTMHRSVTVFSUZCVlFreEpReUJMUlZrdExTMHRMVnh1SWl3aWEyVjVVMmxuYm1GMGRYSmxJam9pWlhsS2VtRlhaSFZaV0ZJeFkyMVZhVTlwU25WaFZXUjJVbnBDUlUweVpFcFZla1pDVTNwQ1YySlViR0ZWTUU0eVdsZFZOVTVJY0VkbFZsbDNaVzFPV2t3d05UQmFWVFZ4VFRKak1GUjZXbTVaVm1RMldsVktZVkZVVFhaaWVsbDZUbFZrYjFkWWEzaE5WMlJPWkVVMVZGVldRak5VYm5CU1VXcHNjMVZ1Y0RKUFZWcDNUSHBGZGxveFpHeE9ibkJRVmpCb2IyRnRWazlTUkd4MllXeGthR0pGVWtSaE1HZzJZa1JXZEZWSFRsaFNhM2hwVld4c2NFNUZNRE5oYTI5NlRsYzViazVXVVRSalNHTTFWMVpqTUZWdWJ6QlJWVTVXWWtoYVMyTkVXbWhYYlRCNVRrY3dlbVJxVmpGbGJHeEZVVzF3UmxsdE5ERlpNMW8wV2tWYVNGRnJNSEpTVXpsWVZFWnNhMVZWVGxaa01taDVVMWR2ZWxKdVJteGtiV3hSWVVWMFFscFhSbGRoV0U1WFdUQk9TV015WTNkWFJrSk9VWHBGTTA1RlZsUlJWekV4VjBWYWMwNUZaSFZUZWs1NFkxZDRhbFV5VGxCVGJYUnFaVVJPZDFkSVpISlpWMUpHVGtac1FrMXJXblJVYm5CWFpWaE9jbGRzUWtOa1NFSlRUVEo0ZVZFelVuTlNSWFJwWldwR1ZFNVVRazVYYXpWclYxUkJjbE50U2xWbFJ6RlJWVEpPVkdOSVdsSmpla3BzU3pCMFdsWkZPRFZoVnpGRFlWZDBObVJYVWt4alJscFVWRWRhVVZsWWNFOU5ibEpvVG0wMVdWSnVZemxRVTBselNXMWtjMkl5U21oaVJYUnNaVlZzYTBscWIybFpiVkpzV2xSVk1rNVVXWGRaTWxwcFRrUk9hazlYU1hsUFIwcHRUMVJvYkZsWFRtaGFiVVV5VGtSWmFXWlJQVDBpZlE9PSJ9
+  parentChartURL: oci://registry.replicated.com/mission-control/stable/mission-control
+  releaseCreatedAt: "2024-10-21T14:07:48Z"
+  releaseNotes: |-
+    # Changelog
+
+    ## 1.6.2 - 2024-10-18
+
+    * [BUGFIX] HCD image coordinates aren't overridden correctly in airgap installations
+    * [BUGFIX] Data API image is missing from the airgap bundle
+    * [BUGFIX] Image pull secret is ignored for the Data API pod
+    * [CHANGE] Upgrade k8ssandra-operator to v1.20.3
+
+    ## 1.6.1 - 2024-10-09
+
+    * [BUGFIX] Fix missing 5.0.1 image and wrong cqlsh pod tag in the airgap bundle
+
+    ## 1.6.0 - 2024-10-08
+
+    * [CHANGE] Fix Next.js CVE-2024-46982 with 14.2.13 upgrade
+    * [FEATURE] Add cqlsh pod
+    * [FEATURE] [UI] Add CQL console
+    * [TESTING] Fix compatibility matrix flakes due to image pull issues
+    * [CHANGE] Upgrade Cassandra/DSE versions to include the latest releases
+    * [BUGFIX] [UI] Fix DC name in CQL console URL
+    * [CHANGE] Force new clusters to use local storage in Reaper and make it work with Cassandra 5
+    * [BUGFIX] Disallow dc name modification on existing clusters
+    * [BUGFIX] Fix internode certificate name
+    * [CHANGE] Upgrade k8ssandra-operator to v1.20.2
+    * [ENHANCEMENT] Bypass the scarf proxy for additional airgap images
+    * [BUGFIX] Add missing fsGroup to the Reaper sts to solve volume access issues
+
+    # Images included in the airgap bundle
+
+    * Cassandra 3.11.17
+    * Cassandra 4.0.14
+    * Cassandra 4.1.7
+    * Cassandra 5.0.1
+    * DSE 6.8.51
+    * DSE 6.9.2
+    * HCD 1.0.0
+    * Data API v1.0.9
+  releaseSequence: 5240
+  replicatedAppEndpoint: https://replicated.app
+  versionLabel: v1.6.2

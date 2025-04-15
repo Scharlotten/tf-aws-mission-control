@@ -4,6 +4,15 @@ controlPlane: true
 
 disableCertManagerCheck: false
 
+grafana:
+  enabled: true
+  sidecar:
+    datasources:
+      enabled: true
+    dashboards:
+      enabled: true
+  plugins:
+    - grafana-polystat-panel
 
 loki:
   enabled: true
@@ -51,7 +60,48 @@ loki:
                   values: ["platform"]
     replicas: 1
 
-mimir:
+k8ssandra-operator:
+  cass-operator:
+    imagePullSecrets:
+      - name: 'mission-control-registry'
+    imagePullSecret: 'mission-control-registry'
+    imageConfig:
+      defaults:
+        hcd:
+          repository: "proxy.replicated.com/proxy/mission-control/559669398656.dkr.ecr.us-west-2.amazonaws.com/engops-shared/hcd/staging/hcd"
+          suffix: ""
+    
+mimir:    
+  query_scheduler:
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"  
+  query_frontend:
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  querier:
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi  
+  ruler:
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi  
+
   alertmanager:
     enabled: true
     extraArgs:
@@ -88,13 +138,13 @@ mimir:
       ingester.ring.replication-factor: "1"
     persistentVolume:
       size: 64Gi
-    replicas: "1"
+    replicas: "2"
     resources:
       limits:
         memory: 2Gi
       requests:
         cpu: 100m
-        memory: 128Mi
+        memory: 705Mi
   store_gateway:
     persistentVolume:
       size: 64Gi
@@ -133,3 +183,24 @@ dex:
         hash: "$2y$10$B8QcQRQEA5Uc0ggpKFgV0OfalYK6QKoSDvFBgh97bX1LHp/McAv7G"
         username: admin
         userID: "my_userterraform state"
+
+  podSecurityContext:
+    # runAsNonRoot: true
+    runAsUser: 1001
+    runAsGroup: 1001
+    fsGroup: 1001
+    supplementalGroups: [1001]
+    seccompProfile:
+      type: "RuntimeDefault"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+  volumeMounts:
+  - mountPath: /tmp
+    name: tmp
+  volumes:
+  - emptyDir: {}
+    name: tmp

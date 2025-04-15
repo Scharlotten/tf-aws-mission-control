@@ -1,0 +1,21 @@
+{{- if .Values.grafana.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-mimir
+  namespace: mission-control
+  labels:
+    grafana_datasource: ""
+data:
+  mimir.yaml: |-
+    apiVersion: 1
+    datasources:
+    - name: mission-control-mimir-3
+      isDefault: true
+      url: http://mission-control-mimir-nginx:80/prometheus
+      type: prometheus
+      jsonData:
+        httpMethod: POST
+        prometheusType: mimir
+      editable: true
+{{- end }}

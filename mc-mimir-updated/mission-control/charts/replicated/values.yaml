@@ -1,0 +1,53 @@
+# Default values for replicated.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+images:
+  replicated-sdk: replicated/replicated-sdk:v1.0.0-beta.14
+license: ""
+licenseFields: ""
+appName: ""
+channelID: ""
+channelName: ""
+channelSequence: -1
+releaseSequence: -1
+releaseCreatedAt: ""
+releaseNotes: ""
+versionLabel: ""
+parentChartURL: ""
+statusInformers: null
+replicatedAppEndpoint: https://replicated.app
+serviceAccountName: ""
+imagePullSecrets: []
+nameOverride: ""
+namespaceOverride: ""
+containerSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+podSecurityContext:
+  enabled: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  supplementalGroups: [1001]
+  seccompProfile:
+    type: "RuntimeDefault"
+service:
+  type: ClusterIP
+  port: 3000
+extraEnv: []
+# "integration" mode related values.
+integration:
+  licenseID: ""
+  # enabled: false
+  mockData: ""
+isAirgap: false
+replicatedID: ""
+appID: ""
+tolerations: []
+global:
+  replicated: {}

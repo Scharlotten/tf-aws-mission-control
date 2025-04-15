@@ -1,0 +1,51 @@
+{{- if .Values.client.manageCrds -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ template "k8ssandra-common.fullname" . }}-crd-upgrader
+  labels: {{ include "k8ssandra-common.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "10"
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels: {{ include "k8ssandra-common.labels" . | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ template "k8ssandra-common.fullname" . }}-crd-upgrader
+      securityContext:
+        {{- toYaml .Values.client.podSecurityContext | nindent 8 }}
+      containers:
+        - name: crd-upgrade-job
+          image: {{ include "k8ssandra-common.flattenedImage" .Values.client.image }}
+          imagePullPolicy: {{ .Values.client.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.client.securityContext | nindent 12 }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{- if .Values.client.proxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.client.proxy }}
+            {{- end }}
+          args:
+            - helm
+            - upgrade
+            - --chartVersion
+            - {{ .Chart.Version }}
+            - --chartName
+            - {{ .Chart.Name }}
+            - --chartRepo
+            - {{ .Chart.Name }}
+            - --charts
+            - k8ssandra-operator,cass-operator
+      {{- if .Values.client.image.imagePullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.client.image.imagePullSecret }}
+      {{- end }}
+{{- end }}

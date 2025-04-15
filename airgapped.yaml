@@ -9,12 +9,13 @@ image:
   repository: mission-control
   pullPolicy: IfNotPresent
   tag: v1.6.2
+  imagePullSecrets: 
+  - name: "mysecret"
 
 imageConfigs:
   registryOverride: 111708290731.dkr.ecr.us-east-2.amazonaws.com
   reaper:
     repository: "thelastpickle"
-    name: blablabla
     tag: 3.6.1
   medusa:
     repository: medusa

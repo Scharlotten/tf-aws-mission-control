@@ -1,0 +1,333 @@
+# -- Determines if the mission-control-operator should be installed as the control plane
+# or if it's simply in a secondary cluster waiting to be promoted
+controlPlane: true
+
+disableCertManagerCheck: false
+
+nodeSelector: 
+  mission-control.datastax.com/role: platform
+
+image:
+  registry: triallga8q5.jfrog.io/asemjen-private
+  repository: mission-control
+  pullPolicy: Always
+  tag: v1.6.2
+
+imagePullSecrets: 
+  - name: 'jfrog-cred'
+imageConfigs:
+  registryOverride: triallga8q5.jfrog.io/asemjen-private
+  reaper:
+    repository: "thelastpickle"
+    tag: 3.6.1
+  medusa:
+    repository: medusa
+    tag: 0.22.3
+  yq:
+    image: yq
+    tag: 4
+  cqlsh: 
+    repository: cqlsh-pod    
+    # tag: 89d62ad5
+  dataApi:
+    repository: stargateio
+    tag: v1.0.9
+
+# -- Node affinity for operator pod assignment.
+allowOperatorsOnDatabaseNodes: false
+
+client:
+  # -- Automatically handle CRD upgrades
+  manageCrds: true
+  image:
+    registry: triallga8q5.jfrog.io/asemjen-private
+    repository: k8ssandra-client
+    tag: mission-control-1.6.2 
+    imagePullSecret: jfrog-cred
+
+# -- Configuration of the job that runs at installation time to patch the conversion webhook in the CRD.
+crdPatchJob:
+  image:
+    registry: triallga8q5.jfrog.io/asemjen-private
+    repository: kubectl
+    tag: 1.30.1
+    imagePullSecret: jfrog-cred
+  
+
+ui:
+  enabled: true
+  # -- Base URL that client browsers will use to access the UI.
+  # If Dex only uses static passwords and/or the LDAP connector, this can be left empty, and the UI will work via any
+  # routable URL.
+  # If Dex uses an external provider (e.g. OIDC), this must be set, and the UI can only be accessed via this canonical
+  # URL.
+  baseUrl: ''
+  image:
+    registry: triallga8q5.jfrog.io/asemjen-private
+    repository: mission-control-ui
+    tag: v1.6.2
+  imagePullSecrets:
+  - name: jfrog-cred
+  service:
+    nodePort: 30880
+  https:
+    enabled: true
+
+# https://github.com/grafana/helm-charts/blob/main/charts/grafana/values.yaml
+grafana:
+  global:
+    imagePullSecrets:
+    - jfrog-cred
+  enabled: true
+  imageRegistry: triallga8q5.jfrog.io/asemjen-private
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/grafana/grafana
+    tag: latest
+    pullPolicy: Always
+  imagePullSecrets:
+  - jfrog-cred
+
+  sidecar:
+    image:
+      repository: triallga8q5.jfrog.io/asemjen-private/k8s-sidecar
+      tag: 1.24.3
+      pullPolicy: Always      
+  downloadDashboardsImage:
+    registry: triallga8q5.jfrog.io/asemjen-private
+    repository: curlimages/curl
+    pullPolicy: Always
+  initChownData:
+    image:
+      repository: triallga8q5.jfrog.io/asemjen-private/busybox
+      pullPolicy: Always
+    imagePullSecrets:
+    - name: jfrog-cred
+
+
+# https://github.com/k8ssandra/k8ssandra-operator/blob/main/charts/k8ssandra-operator/values.yaml
+k8ssandra-operator:
+  image:
+    registry: triallga8q5.jfrog.io/asemjen-private
+    repository: k8ssandra-operator
+    pullPolicy: Always
+  imagePullSecrets:
+  - name: jfrog-cred
+   
+  cass-operator:
+    image:
+      registry: triallga8q5.jfrog.io/asemjen-private
+      repository: cass-operator
+    imagePullSecrets:
+      - name: 'jfrog-cred'
+    imagePullSecret: 'jfrog-cred'
+    imageConfig:
+      systemLogger: triallga8q5.jfrog.io/asemjen-private/system-logger:v1.22.4
+      configBuilder: triallga8q5.jfrog.io/asemjen-private/cass-config-builder:1.0-ubi8
+      k8ssandraClient: triallga8q5.jfrog.io/asemjen-private/k8ssandra/k8ssandra-client:v0.5.0
+
+loki:
+  enabled: true
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/loki
+    tag: 2.9.3
+    pullPolicy: Always
+  loki:
+  imagePullSecrets:
+  - name: jfrog-cred  
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/loki
+    tag: 2.9.3
+    pullPolicy: Always    
+    storage:
+      bucketNames:
+        chunks: "${loki_bucket}"
+      s3:
+        endpoint: s3.${region}.amazonaws.com
+        insecure: false
+        region: "${region}"
+        s3: s3.${region}.amazonaws.com
+        s3ForcePathStyle: false
+      type: s3
+  read:
+    affinity: |
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: mission-control.datastax.com/role
+                  operator: In
+                  values: ["platform"]
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    replicas: 1
+  write:
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    replicas: 1
+  backend:
+    affinity: |
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: mission-control.datastax.com/role
+                  operator: In
+                  values: ["platform"]
+    replicas: 1
+  gateway:
+    image: 
+      registry: triallga8q5.jfrog.io/asemjen-private
+      repository: nginx-unprivileged
+      tag: 1.24-alpine
+
+
+mimir:
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/mimir
+    tag: 2.10.5
+    pullPolicy: Always 
+    pullSecrets: 
+    - jfrog-cred
+  alertmanager:
+    enabled: true
+    extraArgs:
+      alertmanager-storage.backend: local
+      alertmanager-storage.local.path: /etc/alertmanager/config
+      alertmanager.configs.fallback: /etc/alertmanager/config/default.yml
+      alertmanager.sharding-ring.replication-factor: "2"
+    extraVolumeMounts:
+    - mountPath: /etc/alertmanager/config
+      name: alertmanager-config
+    - mountPath: /alertmanager
+      name: alertmanager-config-tmp
+    extraVolumes:
+    - name: alertmanager-config
+      secret:
+        secretName: alertmanager-config
+    - emptyDir: {}
+      name: alertmanager-config-tmp
+    persistentVolume:
+      accessModes:
+      - ReadWriteOnce
+      enabled: "1"
+      size: 10Gi
+    replicas: "2"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  ingester:
+    extraArgs:
+      ingester.max-global-series-per-user: "0"
+      ingester.ring.replication-factor: "1"
+    persistentVolume:
+      size: 64Gi
+    replicas: "2"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  store_gateway:
+    persistentVolume:
+      size: 64Gi
+  compactor:
+    extraArgs:
+      compactor.blocks-retention-period: 30d
+    persistentVolume:
+      enabled: "1"
+      size: 64Gi
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  distributor:
+    extraArgs:
+      ingester.ring.replication-factor: "1"
+    replicas: "1"
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+
+  mimir:
+    image:
+      repository: triallga8q5.jfrog.io/asemjen-private/mimir
+      tag: 2.10.5
+      pullPolicy: Always 
+      pullSecrets: 
+      - jfrog-cred
+    structuredConfig:
+      activity_tracker:
+        filepath: /data/activity.log
+
+
+agent:
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/vector
+    tag: 0.39.0-distroless-libc
+    pullPolicy: Always
+    pullSecrets: 
+      - name: jfrog-cred
+
+    
+
+aggregator:
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/vector
+    tag: 0.39.0-distroless-libc
+    pullPolicy: Always
+    pullSecrets: 
+      - name: jfrog-cred
+  
+  securityContext:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
+replicated:
+  enabled: false
+  images:
+    replicated-sdk: triallga8q5.jfrog.io/asemjen-private/replicated-sdk:v1.0.0-beta.14
+  imagePullSecrets:
+    - name: jfrog-cred
+  isAirgap: true
+    
+
+kube-state-metrics:
+  image:
+    registry: triallga8q5.jfrog.io/asemjen-private
+    repository: kube-state-metrics
+    pullPolicy: Always
+  imagePullSecrets:
+  - name: jfrog-cred
+
+dex:
+  config:
+    enablePasswordDB: true
+    staticPasswords:
+      - email: admin@example.com
+        hash: "$2y$10$B8QcQRQEA5Uc0ggpKFgV0OfalYK6QKoSDvFBgh97bX1LHp/McAv7G"
+        username: admin
+        userID: "my_userterraform state"
+  imagePullSecrets:
+  - name: jfrog-cred
+  image:
+    repository: triallga8q5.jfrog.io/asemjen-private/mission-control-dex
+    tag: v1.6.2
+    pullPolicy: Always

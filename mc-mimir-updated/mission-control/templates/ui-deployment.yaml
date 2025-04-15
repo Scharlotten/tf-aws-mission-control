@@ -1,0 +1,98 @@
+{{- if .Values.ui.enabled -}}
+
+{{- if not .Values.dex.config.issuer -}}
+  {{- fail (print "dex.config.issuer is required when ui.enabled") }}
+{{- end -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8ssandra-common.fullname" . }}-ui
+  labels: {{ include "k8ssandra-common.labels" . | indent 4 }}
+    app: mission-control-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mission-control-ui
+  template:
+    metadata:
+      name: mission-control-ui
+      labels:
+        app: mission-control-ui
+    spec:
+      serviceAccountName: {{ include "k8ssandra-common.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.ui.podSecurityContext | nindent 8 }}
+      containers:
+        - name: mission-control-ui
+          image: {{ include "k8ssandra-common.flattenedImage" .Values.ui.image }}
+          securityContext:
+            {{- toYaml .Values.ui.securityContext | nindent 12 }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          args:
+            - '/mission-control-restapi'
+            - '-release-version={{ .Chart.AppVersion }}'
+            - '-base-url={{ .Values.ui.baseUrl }}'
+            {{- if .Values.ui.https.enabled }}
+            - '-cert-file=/tmp/certs/tls.crt'
+            - '-key-file=/tmp/certs/tls.key'
+            {{- end}}
+            {{- with .Values.ui.metricsUrl }}
+            - '-metrics-url={{ . }}'
+            {{- end }}
+            {{- with .Values.ui.alertsUrl }}
+            - '-alerts-url={{ . }}'
+            {{- end }}
+            {{- if .Values.ui.remoteMonitoring }}
+            - '-remote-monitoring=true'
+            {{- end }}
+          env:
+            - name: GIN_MODE
+              value: release
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8080
+              {{- if .Values.ui.https.enabled }}
+              scheme: HTTPS
+              {{- end}}
+            initialDelaySeconds: 3
+            periodSeconds: 3
+          {{- if .Values.ui.https.enabled }}
+          volumeMounts:
+            - mountPath: /tmp/certs
+              name: cert
+              readOnly: true
+          {{- end}}
+      {{- if .Values.ui.image.imagePullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.ui.image.imagePullSecret }}
+      {{- end}}
+      {{- if .Values.ui.https.enabled }}
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: {{ include "k8ssandra-common.fullname" . }}-ui-cert
+      {{- end}}
+      restartPolicy: Always
+{{- if .Values.ui.https.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "k8ssandra-common.fullname" . }}-ui-cert
+  labels: {{ include "k8ssandra-common.labels" . | indent 4 }}
+    app: mission-control-ui
+spec:
+  commonName: mission-control-ui
+  issuerRef:
+    kind: Issuer
+    name: {{ include "k8ssandra-common.fullname" . }}-selfsigned-issuer
+  secretName: {{ include "k8ssandra-common.fullname" . }}-ui-cert
+{{- end}}
+{{- end}}

@@ -1,0 +1,33 @@
+dependencies:
+- name: k8ssandra-common
+  repository: https://helm.k8ssandra.io
+  version: 0.29.0
+- name: k8ssandra-operator
+  repository: https://helm.k8ssandra.io
+  version: 1.20.3
+- name: dex
+  repository: https://charts.dexidp.io
+  version: 0.15.3
+- name: loki
+  repository: https://grafana.github.io/helm-charts
+  version: 5.41.4
+- name: mimir-distributed
+  repository: https://grafana.github.io/helm-charts
+  version: 5.1.4
+- name: grafana
+  repository: https://grafana.github.io/helm-charts
+  version: 6.48.0
+- name: vector
+  repository: https://helm.vector.dev
+  version: 0.34.0
+- name: vector
+  repository: https://helm.vector.dev
+  version: 0.34.0
+- name: replicated
+  repository: oci://registry.replicated.com/library
+  version: 1.0.0-beta.14
+- name: kube-state-metrics
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 5.18.1
+digest: sha256:cb9ec185e85d2d5f37cec0ec8070b9fa021cc8d594320508bf98c8d1202b0390
+generated: "2024-10-18T16:09:37.838943565Z"

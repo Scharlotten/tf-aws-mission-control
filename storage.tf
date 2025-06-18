@@ -1,5 +1,6 @@
 resource "aws_s3_bucket" "bucket1" {
   bucket = var.loki_bucket 
+  force_destroy = true
 
   tags = {
     Name        = var.username
@@ -10,6 +11,7 @@ resource "aws_s3_bucket" "bucket1" {
 }
 
 resource "aws_s3_bucket" "bucket2" {
+  force_destroy = true
   bucket = var.mimir_bucket 
 
   tags = {

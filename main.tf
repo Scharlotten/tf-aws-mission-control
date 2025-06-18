@@ -74,8 +74,8 @@ module "eks" {
       name = "database"
       instance_types = [var.instance_type_db]    
       min_size     = 3
-      max_size     = 5
-      desired_size = 3     
+      max_size     = 6
+      desired_size = 6     
        labels = {
        "mission-control.datastax.com/role" = "database"
   }
@@ -83,10 +83,10 @@ module "eks" {
     two = {
       name = "platform"
  
-      instance_types = ["t3.xlarge"]
+      instance_types = ["t3a.large"]
       min_size     = 1
       max_size     = 5
-      desired_size = 4
+      desired_size = 3
       labels = {
        "mission-control.datastax.com/role" = "platform"
       }
@@ -123,6 +123,23 @@ resource "kubernetes_annotations" "set_default_storage" {
   }
   depends_on=[module.eks.cluster_name]
 }
+
+# data "kubectl_path_documents" "manifests-directory-yaml" {
+#   pattern = "./ebs-csi-volumesnapshots/*.yaml"
+# }
+# resource "kubectl_manifest" "directory-yaml" {
+#   for_each  = data.kubectl_path_documents.manifests-directory-yaml.manifests
+#   yaml_body = each.value
+# }
+
+
+# data "kubectl_path_documents" "manifests-directory-yaml-for-snapshots" {
+#   pattern = "./volume_snapshots/*.yaml"
+# }
+# resource "kubectl_manifest" "directory-yaml-for-snapshots" {
+#   for_each  = data.kubectl_path_documents.manifests-directory-yaml.manifests
+#   yaml_body = each.value
+# }
 
 
 # https://aws.amazon.com/blogs/containers/amazon-ebs-csi-driver-is-now-generally-available-in-amazon-eks-add-ons/ 

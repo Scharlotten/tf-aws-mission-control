@@ -10,7 +10,7 @@ variable "region" {
 variable "cluster_name" {
   description = "The name to give to the cluster to be provisioned"
   type = string
-  default = "mc-cluster"
+  default = "asemjen-cluster"
 }
 
 variable "loki_bucket" {
@@ -34,7 +34,7 @@ variable "user_email" {
 variable "license_id" {
   description = "Password for mission-control this is in the license file"
   type = string
-  default = "your_license"
+  default = "license_id"
 }
 variable username {
   description =  "A user name that you wish to use when tagging resources"
@@ -45,7 +45,7 @@ variable username {
 variable "instance_type_db" {
   description = "The AWS instance type the DB should be provisioned on"
   type = string
-  default = "r6i.xlarge"
+  default = "r6i.large"
  
 }
 

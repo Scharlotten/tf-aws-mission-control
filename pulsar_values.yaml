@@ -1,0 +1,82 @@
+
+kaap:
+  cluster:
+    create: true
+    spec:
+      global:
+        name: pulsar
+        image: apachepulsar/pulsar:3.0.0
+        restartOnConfigMapChange: true
+      zookeeper:
+        replicas: 3
+        dataVolume:
+          name: data
+          size: 100M
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+      bookkeeper:
+        replicas: 3
+        volumes:
+          journal:
+            size: 2Gi
+          ledgers:
+            size: 2Gi
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+      broker:
+        replicas: 3
+        config:
+          managedLedgerDefaultAckQuorum: "1"
+          managedLedgerDefaultEnsembleSize: "1"
+          managedLedgerDefaultWriteQuorum: "1"
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+      proxy:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+        webSocket:
+          resources:
+            requests:
+              cpu: "0.2"
+              memory: "128Mi"
+      autorecovery:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+      bastion:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: "128Mi"
+      functionsWorker:
+        replicas: 1
+        runtime: kubernetes
+        config:
+          numFunctionPackageReplicas: 1
+          functionInstanceMaxResources:
+            disk: 10000000000
+            ram: 500000000
+            cpu: 0.5
+        resources:
+          requests:
+            cpu: "1"
+
+pulsarGrafanaDashboards:
+  enabled: true
+
+kube-prometheus-stack:
+  enabled: true
+  grafana:
+    adminPassword: grafana1

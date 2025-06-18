@@ -42,7 +42,7 @@ resource "helm_release" "mission_control_datastax" {
   name        = "mission-control"
   namespace   = "mission-control"
   repository  = "oci://registry.replicated.com/mission-control"
-  #version     = "1.6.2"
+  #version     = "1.9.0"
   chart       = "mission-control"
   create_namespace = true
   repository_username = var.user_email
@@ -57,6 +57,24 @@ resource "helm_release" "mission_control_datastax" {
   ]
   depends_on = [helm_release.cert_manager]
 }
+
+
+resource "helm_release" "pulsar_datastax" {
+  name        = "pulsar"
+  namespace   = "kaap"
+  repository  = "https://datastax.github.io/kaap"
+  chart       = "kaap-stack"
+  create_namespace = true
+
+  values = [
+
+    templatefile("./pulsar_values.yaml", {})
+    
+  ]
+  depends_on = [helm_release.cert_manager]
+}
+
+
 
 resource "kubernetes_namespace" "kubernetes_dashboard" {
   metadata {

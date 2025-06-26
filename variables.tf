@@ -52,5 +52,5 @@ variable "instance_type_db" {
 variable "helm_override_file" {
   description = "the extra flie to overwrite default values in the helm installation"
   type = string
-  default = "./override.yaml"
+  default = "./mission-control-values/override.yaml"
 }

@@ -59,3 +59,9 @@ variable "langflow_values_file" {
   type = string
   default = "./langflow-values/langflow-values.yaml"
 }
+
+variable "luna_pulsar_file" {
+  description = "the extra flie to overwrite default values in the helm installation"
+  type = string
+  default = "./luna-values/values.yaml"
+}

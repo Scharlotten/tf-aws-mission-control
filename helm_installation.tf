@@ -67,6 +67,16 @@ resource "helm_release" "langflow_release" {
   values = [templatefile(var.langflow_values_file,{})]
 }
 
+resource "helm_release" "luna_streaming"{
+  name = "dstaxpulsar"
+  namespace = "luna-pulsar"
+  repository = "https://datastax.github.io/pulsar-helm-chart"
+  chart = "pulsar"
+
+  create_namespace = true
+  values = [templatefile(var.luna_pulsar_file, {})]
+}
+
 resource "helm_release" "pulsar_datastax" {
   name        = "pulsar"
   namespace   = "kaap"

@@ -58,6 +58,14 @@ resource "helm_release" "mission_control_datastax" {
   depends_on = [helm_release.cert_manager]
 }
 
+resource "helm_release" "langflow_release" {
+  name = "langflow"
+  namespace = "langflow2"
+  repository = "https://langflow-ai.github.io/langflow-helm-charts"
+  chart = "langflow-ide"
+  create_namespace = true
+  values = [templatefile(var.langflow_values_file,{})]
+}
 
 resource "helm_release" "pulsar_datastax" {
   name        = "pulsar"
@@ -68,13 +76,11 @@ resource "helm_release" "pulsar_datastax" {
 
   values = [
 
-    templatefile("./pulsar_values.yaml", {})
+    templatefile("./pulsar-values/pulsar_values.yaml", {})
     
   ]
   depends_on = [helm_release.cert_manager]
 }
-
-
 
 resource "kubernetes_namespace" "kubernetes_dashboard" {
   metadata {

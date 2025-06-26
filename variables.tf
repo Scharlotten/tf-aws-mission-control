@@ -34,7 +34,7 @@ variable "user_email" {
 variable "license_id" {
   description = "Password for mission-control this is in the license file"
   type = string
-  default = "license_id"
+  #default = "license_id"
 }
 variable username {
   description =  "A user name that you wish to use when tagging resources"
@@ -52,5 +52,10 @@ variable "instance_type_db" {
 variable "helm_override_file" {
   description = "the extra flie to overwrite default values in the helm installation"
   type = string
-  default = "./override.yaml"
+  default = "./mission-control-values/override.yaml"
+}
+variable "langflow_values_file" {
+  description = "the extra flie to overwrite default values in the helm installation"
+  type = string
+  default = "./langflow-values/langflow-values.yaml"
 }

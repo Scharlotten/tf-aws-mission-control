@@ -1,0 +1,27 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mimir-tls-secret
+  namespace: mission-control
+spec:
+  secretName: mimir-tls-secret  
+  issuerRef:
+    name: mission-control-selfsigned              
+    kind: ClusterIssuer
+  commonName: mimir-query-scheduler.mission-control.svc.cluster.local  
+  dnsNames:
+    - mission-control-mimir-query-scheduler.mission-control.svc.cluster.local
+    - mission-control-mimir-query-frontend.mission-control.svc.cluster.local
+    - mission-control-mimir-querier.mission-control.svc.cluster.local
+    - mission-control-mimir-distributor.mission-control.svc.cluster.local
+    - mission-control-mimir-ingester.mission-control.svc.cluster.local
+    - mission-control-mimir-store-gateway.mission-control.svc.cluster.local
+    - mission-control-mimir-compactor.mission-control.svc.cluster.local
+    - mission-control-mimir-ruler.mission-control.svc.cluster.local
+    - mission-control-mimir-alertmanager.mission-control.svc.cluster.local
+    - mission-control-mimir-overrides-exporter.mission-control.svc.cluster.local
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth

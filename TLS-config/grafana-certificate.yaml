@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls-secret
+  namespace: mission-control
+spec:
+  secretName: grafana-tls-secret  
+  issuerRef:
+    name: mission-control-selfsigned              
+    kind: ClusterIssuer
+  commonName: mc-grafana.mission-control.svc.cluster.local  
+  dnsNames:
+    - mission-control-grafana.mission-control.svc.cluster.local                  
+  usages:
+    - digital signature
+    - key encipherment

@@ -64,7 +64,7 @@ dex:
       userID: 08a8684b-db88-4b73-90a9-3cd1661f5466
       username: admin
   image:
-    tag: v1.14.0
+    tag: v1.15.0
   podSecurityContext:
     runAsNonRoot: true
   securityContext:
@@ -572,4 +572,4 @@ ui:
   https:
     enabled: true
   image:
-    tag: v1.14.0
+    tag: v1.15.0

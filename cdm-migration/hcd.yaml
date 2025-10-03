@@ -1,0 +1,63 @@
+apiVersion: missioncontrol.datastax.com/v1beta2
+kind: MissionControlCluster
+metadata:
+  name: hcd
+  namespace: hcd-epk60j1n
+spec:
+  createIssuer: true
+  dataApi: {}
+  encryption:
+    internodeEncryption:
+      certs:
+        createCerts: true
+      enabled: true
+  k8ssandra:
+    auth: true
+    cassandra:
+      config:
+        cassandraYaml: {}
+        dseYaml: {}
+        jvmOptions:
+          gc: G1GC
+          heapSize: 1Gi
+      datacenters:
+        - config:
+            cassandraYaml: {}
+            dseYaml: {}
+          datacenterName: dc-1
+          dseWorkloads: {}
+          metadata:
+            name: hcd-dc-1
+            pods: {}
+            services:
+              additionalSeedService: {}
+              allPodsService: {}
+              dcService: {}
+              nodePortService: {}
+              seedService: {}
+          networking: {}
+          perNodeConfigMapRef: {}
+          racks:
+            - name: rc-1
+              nodeAffinityLabels: {}
+            - name: rc-2
+              nodeAffinityLabels: {}
+            - name: rc-3
+              nodeAffinityLabels: {}
+          size: 3
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 4Gi
+      serverType: hcd
+      serverVersion: 1.2.3
+      storageConfig:
+        cassandraDataVolumeClaimSpec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+          storageClassName: gp2
+      superuserSecretRef:
+        name: hcd-superuser

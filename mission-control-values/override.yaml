@@ -1,3 +1,45 @@
+global:   
+  imageConfig:
+    images:
+      cql-router:
+        registry: "proxy.replicated.com"
+        repository: "proxy/mission-control/559669398656.dkr.ecr.us-west-2.amazonaws.com/mission-control"
+        name: "cql-router"
+        tag: "ed96e7c4"
+      cqlsh:
+        registry: "proxy.replicated.com"
+        repository: "proxy/mission-control/559669398656.dkr.ecr.us-west-2.amazonaws.com/mission-control"
+        name: "cqlsh-pod"
+        tag: "d6dcf587"
+      data-api:
+        repository: "stargateio"
+        name: "data-api"
+        tag: "v1.0.32"
+    defaults:
+      pullSecrets:
+        - "{{ .Release.Name}}-registry"
+    types:
+      hcd:
+        registry: "proxy.replicated.com"
+        repository: "proxy/mission-control/559669398656.dkr.ecr.us-west-2.amazonaws.com/engops-shared/hcd/prod"
+        name: "hcd"
+        suffix: "-ubi"
+  replicated:
+    channelName: Stable
+    customerEmail: anna.semjen@ibm.com
+    customerName: IBM  - Anna  Semjen
+    dockerconfigjson: eyJhdXRocyI6eyJwcm94eS5yZXBsaWNhdGVkLmNvbSI6eyJhdXRoIjoiTXpGRlRUZzJTSHA1VFRCbFFteHBZV2RTVkhOVVpUVnpkamN6T2pNeFJVMDROa2g2ZVUwd1pVSnNhV0ZuVWxSelZHVTFjM1kzTXc9PSJ9LCJyZWdpc3RyeS5yZXBsaWNhdGVkLmNvbSI6eyJhdXRoIjoiTXpGRlRUZzJTSHA1VFRCbFFteHBZV2RTVkhOVVpUVnpkamN6T2pNeFJVMDROa2g2ZVUwd1pVSnNhV0ZuVWxSelZHVTFjM1kzTXc9PSJ9fX0=
+    licenseFields:
+      expires_at:
+        name: expires_at
+        title: Expiration
+        description: License Expiration
+        value: ""
+        valueType: String
+        signature:
+          v1: ZDB8mhK/V/+df1wTnza8e5TqxB821BunbTKe07GGSTz45PtcG27faxDskFlSU4lR7FKMeQhrXJK3GZ9qwGep3xFGWIAuZhVsCgs4w6i3SnGdyN2dooXzpeBzZYF2yyHNS9BcgqXTUb3Yldnrh6sOyv1z8JzCM7rCRj/UtDen+hj68eHS1US/+JHS8kCEZV1EqPlD6IPc8pH/wiB3wNUyBMGFvgTWITQQEylvVz0MA5kF0tPq0KSdLpqowF1acYcid7E14ZQ/lgW168fXxXPP2hLxGZ0nbDs0EL3zjpjCQ5Wnn/IgQfCmicNBfBMLY7rR4y9Hxth89pXTJLH9BK2aHw==
+    licenseID: 31EM86HzyM0eBliagRTsTe5sv73
+    licenseType: community
 agent:
   enabled: false
   podSecurityContext:
@@ -93,7 +135,7 @@ grafana:
             - platform
   enabled: false
 image:
-  tag: v1.14.0
+  tag: v1.15.0
 k8ssandra-operator:
   cass-operator:
     disableCertManagerCheck: true

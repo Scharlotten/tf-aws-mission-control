@@ -1,0 +1,72 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cdm-config
+  namespace: hcd-epk60j1n
+data:
+  cdm.properties: |
+    # Origin cluster configuration
+    spark.cdm.connect.origin.host=cassandra-cassandra-dc-1-contact-points-service.hcd-epk60j1n.svc.cluster.local
+    spark.cdm.connect.origin.port=9042
+    spark.cdm.connect.origin.username=cassandra-superuser
+    spark.cdm.connect.origin.password=yourPassword
+
+    # Target cluster configuration  
+    spark.cdm.connect.target.host=hcd-hcd-dc-1-contact-points-service.hcd-epk60j1n.svc.cluster.local
+    spark.cdm.connect.target.port=9042
+    spark.cdm.connect.target.username=hcd-superuser
+    spark.cdm.connect.target.password=yourPassword
+
+    # Schema configuration
+    spark.cdm.schema.origin.keyspaceTable=cycling.races
+
+    # Performance settings
+    spark.cdm.perfops.batchSize=1000
+    spark.cdm.perfops.numSplits=8
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cassandra-data-migrator
+  namespace: hcd-epk60j1n
+spec:
+  # Auto-cleanup job and pod after 5 minutes
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      containers:
+        - name: cdm
+          image: datastax/cassandra-data-migrator:5.5.1
+          env:
+            - name: JAVA_OPTS
+              value: "-Xmx2g -Xms1g"
+          args:
+            - spark-submit
+            - --properties-file
+            - /config/cdm.properties
+            - --class
+            - com.datastax.cdm.job.Migrate
+            - /assets/cassandra-data-migrator-5.5.1.jar
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: logs
+              mountPath: /tmp
+          imagePullPolicy: Always
+      volumes:
+        - name: config
+          configMap:
+            name: cdm-config
+        - name: logs
+          emptyDir: {}
+      restartPolicy: Never

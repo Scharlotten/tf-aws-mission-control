@@ -1,0 +1,208 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cdm-data-pvc
+  namespace: hcd-epk60j1n
+  labels:
+    app: cdm-migration
+    component: data-storage
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: gp2
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cdm-config-job-pvc
+  namespace: hcd-epk60j1n
+data:
+  cdm.properties: |
+    # Origin cluster configuration
+    spark.cdm.connect.origin.host=cassandra-cassandra-dc-1-contact-points-service.hcd-epk60j1n.svc.cluster.local
+    spark.cdm.connect.origin.port=9042
+    spark.cdm.connect.origin.username=cassandra-superuser
+    spark.cdm.connect.origin.password=yourPassword
+
+    # Target cluster configuration  
+    spark.cdm.connect.target.host=hcd-hcd-dc-1-contact-points-service.hcd-epk60j1n.svc.cluster.local
+    spark.cdm.connect.target.port=9042
+    spark.cdm.connect.target.username=hcd-superuser
+    spark.cdm.connect.target.password=yourPassword
+
+    # Schema configuration
+    spark.cdm.schema.origin.keyspaceTable=cycling.races
+
+    # Performance settings
+    spark.cdm.perfops.batchSize=1000
+    spark.cdm.perfops.numSplits=8
+
+    # Job tracking and resume configuration
+    spark.cdm.trackRun.autoRerun=true
+    spark.cdm.trackRun.writeToDB=true
+    
+    # Spark checkpointing configuration
+    spark.sql.streaming.checkpointLocation=/data/spark-checkpoints
+    spark.eventLog.enabled=true
+    spark.eventLog.dir=/data/spark-events
+    spark.history.fs.logDirectory=/data/spark-events
+    
+    # Additional Spark configurations for resilience
+    spark.serializer=org.apache.spark.serializer.KryoSerializer
+    spark.sql.adaptive.enabled=true
+    spark.sql.adaptive.coalescePartitions.enabled=true
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cassandra-data-migrator-with-pvc
+  namespace: hcd-epk60j1n
+  labels:
+    app: cdm-migration
+    component: data-migrator
+spec:
+  # Auto-cleanup job and pod after 5 minutes
+  ttlSecondsAfterFinished: 300
+  # Retry policy
+  backoffLimit: 3
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: cdm-migration
+        component: data-migrator
+      annotations:
+        # Add timestamp for tracking
+        migration.start.time: ""
+    spec:
+      # Important: Don't restart on completion
+      restartPolicy: Never
+      containers:
+        - name: cdm
+          image: datastax/cassandra-data-migrator:5.5.1
+          env:
+            - name: JAVA_OPTS
+              value: "-Xmx2g -Xms1g -Djava.io.tmpdir=/data/tmp"
+            - name: SPARK_LOCAL_DIRS
+              value: "/data/spark-local"
+            - name: CDM_RUN_ID
+              value: "job-$(date +%Y%m%d-%H%M%S)"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Generate unique run ID with timestamp
+              export CDM_RUN_ID="cdm-job-$(date +%Y%m%d-%H%M%S)-$$"
+              
+              # Create necessary directories
+              mkdir -p /data/spark-checkpoints /data/spark-events /data/spark-local /data/tmp /data/logs
+              
+              # Set permissions
+              chmod 755 /data/spark-checkpoints /data/spark-events /data/spark-local /data/tmp /data/logs
+              
+              # Export additional environment variables
+              export SPARK_LOCAL_DIRS="/data/spark-local"
+              export JAVA_IO_TMPDIR="/data/tmp"
+              
+              # Log start time and configuration
+              echo "$(date): Starting CDM migration with run ID: ${CDM_RUN_ID}" | tee -a /data/logs/cdm-migration.log
+              echo "$(date): Job: $(hostname)" | tee -a /data/logs/cdm-migration.log
+              echo "$(date): Configuration:" | tee -a /data/logs/cdm-migration.log
+              cat /config/cdm.properties | tee -a /data/logs/cdm-migration.log
+              echo "$(date): =====================================" | tee -a /data/logs/cdm-migration.log
+              
+              # Check if previous run exists and should be resumed
+              if [ -d "/data/spark-checkpoints" ] && [ "$(ls -A /data/spark-checkpoints)" ]; then
+                echo "$(date): Found existing checkpoints, migration will resume automatically" | tee -a /data/logs/cdm-migration.log
+              else
+                echo "$(date): Starting fresh migration" | tee -a /data/logs/cdm-migration.log
+              fi
+              
+              # Execute spark-submit with error handling
+              echo "$(date): Executing spark-submit..." | tee -a /data/logs/cdm-migration.log
+              
+              set +e  # Don't exit on spark-submit failure
+              spark-submit \
+                --properties-file /config/cdm.properties \
+                --class com.datastax.cdm.job.Migrate \
+                --conf spark.app.name="CDM-Migration-${CDM_RUN_ID}" \
+                --conf spark.sql.streaming.checkpointLocation=/data/spark-checkpoints \
+                --conf spark.eventLog.dir=/data/spark-events \
+                --conf spark.history.fs.logDirectory=/data/spark-events \
+                /assets/cassandra-data-migrator-5.5.1.jar 2>&1 | tee -a /data/logs/cdm-migration.log
+              
+              SPARK_EXIT_CODE=$?
+              set -e
+              
+              # Log completion status
+              echo "$(date): =====================================" | tee -a /data/logs/cdm-migration.log
+              if [ $SPARK_EXIT_CODE -eq 0 ]; then
+                echo "$(date): CDM migration completed successfully!" | tee -a /data/logs/cdm-migration.log
+                echo "$(date): Run ID: ${CDM_RUN_ID}" | tee -a /data/logs/cdm-migration.log
+              else
+                echo "$(date): CDM migration failed with exit code: $SPARK_EXIT_CODE" | tee -a /data/logs/cdm-migration.log
+                echo "$(date): Check logs above for details" | tee -a /data/logs/cdm-migration.log
+                echo "$(date): Job can be resumed using the same PVC" | tee -a /data/logs/cdm-migration.log
+              fi
+              
+              # Create completion marker file
+              echo "${CDM_RUN_ID}" > /data/logs/last-run-id.txt
+              echo "$(date)" > /data/logs/last-completion-time.txt
+              echo "${SPARK_EXIT_CODE}" > /data/logs/last-exit-code.txt
+              
+              # Final log entry
+              echo "$(date): Job container exiting with code: $SPARK_EXIT_CODE" | tee -a /data/logs/cdm-migration.log
+              
+              # Exit with spark's exit code
+              exit $SPARK_EXIT_CODE
+              
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: cdm-data
+              mountPath: /data
+          ports:
+            - containerPort: 4040
+              name: spark-ui
+              protocol: TCP
+      volumes:
+        - name: config
+          configMap:
+            name: cdm-config-job-pvc
+        - name: cdm-data
+          persistentVolumeClaim:
+            claimName: cdm-data-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cdm-migration-job-ui
+  namespace: hcd-epk60j1n
+  labels:
+    app: cdm-migration
+    component: data-migrator
+spec:
+  type: ClusterIP
+  selector:
+    app: cdm-migration
+    component: data-migrator
+  ports:
+    - name: spark-ui
+      port: 4040
+      targetPort: 4040
+      protocol: TCP

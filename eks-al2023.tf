@@ -31,7 +31,7 @@ module "eks_al2023" {
       ami_type       = "AL2023_x86_64_STANDARD"
 
       min_size = 2
-      max_size = 5
+      max_size = 9
       # This value is ignored after the initial creation
       # https://github.com/bryantbiggs/eks-desired-size-hack
       desired_size = 2

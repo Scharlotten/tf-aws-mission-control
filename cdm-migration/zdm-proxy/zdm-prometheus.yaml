@@ -1,0 +1,115 @@
+---
+# Prometheus ConfigMap for ZDM proxy monitoring
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zdm-prometheus-config
+  namespace: hcd-epk60j1n
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: 'zdm_proxy'
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+            - 'zdm-proxy-service.hcd-epk60j1n.svc.cluster.local:14001'
+        scrape_interval: 5s
+        scrape_timeout: 5s
+
+      - job_name: 'prometheus'
+        static_configs:
+          - targets:
+            - 'localhost:9090'
+
+---
+# Prometheus Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zdm-prometheus
+  namespace: hcd-epk60j1n
+  labels:
+    app: zdm-prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zdm-prometheus
+  template:
+    metadata:
+      labels:
+        app: zdm-prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.48.0
+        ports:
+        - containerPort: 9090
+          name: web
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--web.enable-lifecycle'
+          - '--storage.tsdb.retention.time=7d'
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        configMap:
+          name: zdm-prometheus-config
+      - name: storage
+        emptyDir: {}
+
+---
+# Prometheus Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: zdm-prometheus-service
+  namespace: hcd-epk60j1n
+  labels:
+    app: zdm-prometheus
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: web
+  selector:
+    app: zdm-prometheus
+
+---
+# Service to expose Prometheus externally (optional)
+apiVersion: v1
+kind: Service
+metadata:
+  name: zdm-prometheus-loadbalancer
+  namespace: hcd-epk60j1n
+  labels:
+    app: zdm-prometheus
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: web
+  selector:
+    app: zdm-prometheus

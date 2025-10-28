@@ -1,0 +1,146 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zdm-proxy
+  namespace: hcd-epk60j1n
+  labels:
+    app: zdm-proxy
+    component: proxy
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zdm-proxy
+      component: proxy
+  template:
+    metadata:
+      labels:
+        app: zdm-proxy
+        component: proxy
+      annotations:
+        config/checksum: ""
+    spec:
+      containers:
+        - name: zdm-proxy
+          image: datastax/zdm-proxy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 14002
+              name: cql-port
+              protocol: TCP
+            - containerPort: 14001
+              name: metrics-port
+              protocol: TCP
+          env:
+            # Proxy configuration
+            - name: ZDM_PROXY_LISTEN_ADDRESS
+              value: "0.0.0.0"
+            - name: ZDM_PROXY_LISTEN_PORT
+              value: "14002"
+            - name: ZDM_PRIMARY_CLUSTER
+              value: "ORIGIN"
+            - name: ZDM_READ_MODE
+              value: "PRIMARY_ONLY"
+            - name: ZDM_LOG_LEVEL
+              value: "INFO"
+            
+            # Origin cluster (Apache Cassandra)
+            - name: ZDM_ORIGIN_CONTACT_POINTS
+              value: "cassandra-cassandra-dc-1-service.hcd-epk60j1n.svc.cluster.local"
+            - name: ZDM_ORIGIN_PORT
+              value: "9042"
+            - name: ZDM_ORIGIN_USERNAME
+              value: "cassandra-superuser"
+            - name: ZDM_ORIGIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cassandra-superuser
+                  key: password
+            
+            # Target cluster (DataStax HCD)
+            - name: ZDM_TARGET_CONTACT_POINTS
+              value: "hcd-hcd-dc-1-service.hcd-epk60j1n.svc.cluster.local"
+            - name: ZDM_TARGET_PORT
+              value: "9042"
+            - name: ZDM_TARGET_USERNAME
+              value: "hcd-superuser"
+            - name: ZDM_TARGET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: hcd-superuser
+                  key: password
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "1024Mi"
+          livenessProbe:
+            tcpSocket:
+              port: 14002
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 14002
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          startupProbe:
+            tcpSocket:
+              port: 14002
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zdm-proxy-service
+  namespace: hcd-epk60j1n
+  labels:
+    app: zdm-proxy
+    component: proxy
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "14001"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: zdm-proxy
+    component: proxy
+  ports:
+    - name: cql
+      port: 9042
+      targetPort: 14002
+      protocol: TCP
+    - name: metrics
+      port: 14001
+      targetPort: 14001
+      protocol: TCP
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zdm-proxy-pdb
+  namespace: hcd-epk60j1n
+  labels:
+    app: zdm-proxy
+    component: proxy
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: zdm-proxy
+      component: proxy

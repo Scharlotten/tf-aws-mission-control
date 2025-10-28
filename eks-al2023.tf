@@ -25,16 +25,16 @@ module "eks_al2023" {
   subnet_ids = module.vpc.private_subnets
 
   eks_managed_node_groups = {
-    one = {
+        three = {
       # Starting on 1.30, AL2023 is the default AMI type for EKS managed node groups
-      instance_types = ["m6i.large"]
+      instance_types = ["m6i.xlarge"]
       ami_type       = "AL2023_x86_64_STANDARD"
 
       min_size = 2
       max_size = 9
       # This value is ignored after the initial creation
       # https://github.com/bryantbiggs/eks-desired-size-hack
-      desired_size = 2
+      desired_size = 6
              labels = {
        "mission-control.datastax.com/role" = "database"}
       # This is not required - demonstrates how to pass additional configuration to nodeadm
@@ -54,6 +54,7 @@ module "eks_al2023" {
         }
       ]
     },
+    
     two = {
         instance_types = ["t3.large"]
         ami_type       = "AL2023_x86_64_STANDARD"

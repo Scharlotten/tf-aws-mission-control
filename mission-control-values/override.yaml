@@ -40,6 +40,7 @@ global:
           v1: ZDB8mhK/V/+df1wTnza8e5TqxB821BunbTKe07GGSTz45PtcG27faxDskFlSU4lR7FKMeQhrXJK3GZ9qwGep3xFGWIAuZhVsCgs4w6i3SnGdyN2dooXzpeBzZYF2yyHNS9BcgqXTUb3Yldnrh6sOyv1z8JzCM7rCRj/UtDen+hj68eHS1US/+JHS8kCEZV1EqPlD6IPc8pH/wiB3wNUyBMGFvgTWITQQEylvVz0MA5kF0tPq0KSdLpqowF1acYcid7E14ZQ/lgW168fXxXPP2hLxGZ0nbDs0EL3zjpjCQ5Wnn/IgQfCmicNBfBMLY7rR4y9Hxth89pXTJLH9BK2aHw==
     licenseID: 31EM86HzyM0eBliagRTsTe5sv73
     licenseType: community
+
 agent:
   enabled: false
   podSecurityContext:
@@ -133,7 +134,7 @@ grafana:
             operator: In
             values:
             - platform
-  enabled: false
+  enabled: true
 image:
   tag: v1.15.0
 k8ssandra-operator:
@@ -412,6 +413,7 @@ mimir:
       requests:
         cpu: 100m
         memory: 128Mi
+ 
   mimir:
     structuredConfig:
       activity_tracker:
@@ -553,12 +555,12 @@ mimir:
       ruler.query-frontend.address: mission-control-mimir-query-frontend:9095
     extraVolumeMounts:
     - mountPath: /etc/rules/anonymous
-      name: ruler-config
+      name: mission-control-ruler-config
     extraVolumes:
     - configMap:
         defaultMode: 420
-        name: ruler-config
-      name: ruler-config
+        name: mission-control-ruler-config
+      name: mission-control-ruler-config
     replicas: "1"
     resources:
       limits:
@@ -599,7 +601,7 @@ replicated:
   - mission-control/deployment/mission-control-cass-operator
   - mission-control/deployment/mission-control-k8ssandra-operator
   - mission-control/deployment/mission-control-operator
-  versionLabel: v1.14.0
+  versionLabel: v1.15.0
 securityContext:
   allowPrivilegeEscalation: false
   capabilities:

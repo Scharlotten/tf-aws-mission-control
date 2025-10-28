@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: produce-race-data
+  namespace: hcd-epk60j1n
+  labels:
+    app: produce-race-data
+    component: data-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: produce-race-data
+  template:
+    metadata:
+      labels:
+        app: produce-race-data
+        component: data-producer
+    spec:
+      containers:
+      - name: produce-race-data
+        image: docker.io/asemjen/produce-cassandra:latest
+        env:
+        # Connect via ZDM Proxy instead of direct Cassandra connection
+        - name: CASSANDRA_HOST
+          value: "zdm-proxy-service.hcd-epk60j1n.svc.cluster.local"
+        - name: CASSANDRA_PORT
+          value: "9042"
+        - name: CASSANDRA_USERNAME
+          value: "cassandra"
+        - name: CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cassandra-superuser
+              key: password
+        - name: CASSANDRA_DATACENTER
+          value: "dc-1"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        # Add liveness probe since this runs continuously
+        livenessProbe:
+          exec:
+            command:
+              - pgrep
+              - -f
+              - java
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      restartPolicy: Always

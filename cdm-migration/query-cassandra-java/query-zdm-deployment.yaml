@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: query-cassandra
+  namespace: hcd-epk60j1n
+  labels:
+    app: query-cassandra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: query-cassandra
+  template:
+    metadata:
+      labels:
+        app: query-cassandra
+    spec:
+      containers:
+      - name: query-cassandra
+        image: docker.io/asemjen/query-cassandra:latest
+        args: ["cycling", "races"]  # Default keyspace and table
+        env:
+        - name: CASSANDRA_HOST
+          value: "zdm-proxy-service.hcd-epk60j1n.svc.cluster.local"
+        - name: CASSANDRA_PORT
+          value: "9042"
+        - name: CASSANDRA_USERNAME
+          value: "hcd-superuser"
+        - name: CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hcd-superuser
+              key: password
+        - name: CASSANDRA_DATACENTER
+          value: "dc-1"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      restartPolicy: Always
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: query-cassandra-job
+  namespace: hcd-epk60j1n
+  labels:
+    app: query-cassandra-job
+spec:
+  template:
+    metadata:
+      labels:
+        app: query-cassandra-job
+    spec:
+      containers:
+      - name: query-cassandra
+        image: docker.io/asemjen/query-cassandra:latest
+        args: ["cycling", "races"]  # Change keyspace and table as needed
+        env:
+        - name: CASSANDRA_HOST
+          value: "zdm-proxy-service.hcd-epk60j1n.svc.cluster.local"
+        - name: CASSANDRA_PORT
+          value: "9042"
+        - name: CASSANDRA_USERNAME
+          value: "hcd-superuser"
+        - name: CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hcd-superuser
+              key: password
+        - name: CASSANDRA_DATACENTER
+          value: "dc-1"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      restartPolicy: Never
+  backoffLimit: 3

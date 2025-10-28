@@ -1,0 +1,96 @@
+---
+# Debug pod to test ZDM proxy connectivity
+apiVersion: v1
+kind: Pod
+metadata:
+  name: zdm-debug
+  namespace: hcd-epk60j1n
+spec:
+  containers:
+  - name: debug
+    image: cassandra:3.11
+    command: ["/bin/sleep", "3600"]
+    env:
+    - name: CQLSH_HOST
+      value: "zdm-proxy-service.hcd-epk60j1n.svc.cluster.local"
+    - name: CQLSH_PORT
+      value: "9042"
+  restartPolicy: Never
+
+---
+# Test with origin cluster credentials (cassandra-superuser)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zdm-test-origin-creds
+  namespace: hcd-epk60j1n
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: cassandra:3.11
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Testing ZDM proxy with origin credentials..."
+          cqlsh zdm-proxy-service.hcd-epk60j1n.svc.cluster.local 9042 -u cassandra-superuser -p $CASSANDRA_PASSWORD -e "SELECT cluster_name FROM system.local;"
+        env:
+        - name: CASSANDRA_PASSWORD
+          value: "yourPassword"
+      restartPolicy: Never
+  backoffLimit: 1
+
+---
+# Test with target cluster credentials (hcd-superuser)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zdm-test-target-creds
+  namespace: hcd-epk60j1n
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: cassandra:3.11
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Testing ZDM proxy with target credentials..."
+          cqlsh zdm-proxy-service.hcd-epk60j1n.svc.cluster.local 9042 -u hcd-superuser -p $HCD_PASSWORD -e "SELECT cluster_name FROM system.local;"
+        env:
+        - name: HCD_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hcd-superuser
+              key: password
+      restartPolicy: Never
+  backoffLimit: 1
+
+---
+# Test direct connection to origin cluster for comparison
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zdm-test-direct-origin
+  namespace: hcd-epk60j1n
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: cassandra:3.11
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "Testing direct connection to origin cluster..."
+          cqlsh cassandra-cassandra-dc-1-service.hcd-epk60j1n.svc.cluster.local 9042 -u cassandra-superuser -p $CASSANDRA_PASSWORD -e "SELECT cluster_name FROM system.local;"
+        env:
+        - name: CASSANDRA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cassandra-superuser
+              key: password
+      restartPolicy: Never
+  backoffLimit: 1

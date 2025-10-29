@@ -94,22 +94,3 @@ spec:
       name: web
   selector:
     app: zdm-prometheus
-
----
-# Service to expose Prometheus externally (optional)
-apiVersion: v1
-kind: Service
-metadata:
-  name: zdm-prometheus-loadbalancer
-  namespace: hcd-epk60j1n
-  labels:
-    app: zdm-prometheus
-spec:
-  type: LoadBalancer
-  ports:
-    - port: 9090
-      targetPort: 9090
-      protocol: TCP
-      name: web
-  selector:
-    app: zdm-prometheus

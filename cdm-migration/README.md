@@ -27,14 +27,16 @@ The Cassandra Data Migrator enables seamless data migration between different Ca
 
 ## Files Description
 
-| File | Purpose | Description |
+| File/Directory | Purpose | Description |
 |------|---------|-------------|
-| `cassandra.yaml` | Source Cluster | Apache Cassandra 3.11.15 MissionControlCluster manifest |
-| `hcd.yaml` | Target Cluster | DataStax HCD 1.2.3 MissionControlCluster manifest |
-| `cdm-migration.yaml` | Migration Job | CDM configuration and Kubernetes Job for data migration |
-| `cdm-migration-job-with-pvc.yaml` | Migration Job with Persistence | CDM Job with PersistentVolume for state and log persistence |
-| `cdm-job-pvc-pickup.yaml` | Debug Pod | Ubuntu debug pod to access PVC logs and data after job completion |
+| `db-definitions/cassandra.yaml` | Source Cluster | Apache Cassandra 3.11.15 MissionControlCluster manifest |
+| `db-definitions/hcd.yaml` | Target Cluster | DataStax HCD 1.2.3 MissionControlCluster manifest |
+| `cdm-config/cdm-migration.yaml` | Migration Job | CDM configuration and Kubernetes Job for data migration |
+| `cdm-config/cdm-migration-job-with-pvc.yaml` | Migration Job with Persistence | CDM Job with PersistentVolume for state and log persistence |
+| `cdm-config/cdm-job-pvc-pickup.yaml` | Debug Pod | Ubuntu debug pod to access PVC logs and data after job completion |
 | `query-cassandra-java/` | Testing Tool | Java application for database connectivity testing |
+| `produce-cassandra-java/` | Data Generation | Java application for producing test data to Cassandra |
+| `zdm-proxy/` | ZDM Proxy | Zero Downtime Migration proxy configuration and testing tools |
 
 ## Quick Start
 
@@ -44,12 +46,12 @@ The Cassandra Data Migrator enables seamless data migration between different Ca
 
 Deploy the source Apache Cassandra cluster:
 ```bash
-kubectl apply -f cassandra.yaml
+kubectl apply -f db-definitions/cassandra.yaml
 ```
 
 Deploy the target HCD cluster:
 ```bash
-kubectl apply -f hcd.yaml
+kubectl apply -f db-definitions/hcd.yaml
 ```
 
 ### 2. Verify Cluster Deployment
@@ -64,7 +66,7 @@ Wait for all pods to be in `Running` state before proceeding.
 
 ### 3. Configure Migration Parameters
 
-Edit `cdm-migration.yaml` and update the following:
+Edit `cdm-config/cdm-migration.yaml` and update the following:
 
 - **Namespace**: Change `namespace: hcd-epk60j1n` to your namespace
 - **Passwords**: Replace `yourPassword` with actual superuser passwords
@@ -77,14 +79,14 @@ Edit `cdm-migration.yaml` and update the following:
 
 **Option A: Basic Job (No Persistence)**
 ```bash
-kubectl apply -f cdm-migration.yaml
+kubectl apply -f cdm-config/cdm-migration.yaml
 kubectl logs -f job/cassandra-data-migrator -n <your-namespace>
 ```
 
 **Option B: Job with Persistent Volume (Recommended for Large Migrations)**
 ```bash
 # Deploy job with PVC for state persistence and resumability
-kubectl apply -f cdm-migration-job-with-pvc.yaml
+kubectl apply -f cdm-config/cdm-migration-job-with-pvc.yaml
 kubectl logs -f job/cassandra-data-migrator-with-pvc -n <your-namespace>
 ```
 
@@ -130,7 +132,7 @@ If you used the PVC-enabled job (`cdm-migration-job-with-pvc.yaml`), all logs an
 
 ```bash
 # Deploy Ubuntu debug pod to access PVC
-kubectl apply -f cdm-job-pvc-pickup.yaml
+kubectl apply -f cdm-config/cdm-job-pvc-pickup.yaml
 ```
 
 ### Access Logs and Data
@@ -201,7 +203,7 @@ kubectl logs job/cassandra-data-migrator -n <your-namespace>
 
 To migrate a different table:
 
-1. Update `spark.cdm.schema.origin.keyspaceTable` in `cdm-migration.yaml`
+1. Update `spark.cdm.schema.origin.keyspaceTable` in `cdm-config/cdm-migration.yaml`
 2. Ensure the target keyspace and table exist
 3. Adjust performance settings if needed
 
@@ -220,8 +222,62 @@ For large datasets, consider adjusting:
 - Use appropriate batch sizes based on row complexity
 - Ensure sufficient disk space for temporary files
 
+## Zero Downtime Migration (ZDM) Proxy
+
+The `zdm-proxy/` directory contains configurations for DataStax's Zero Downtime Migration proxy, which allows you to migrate data from your origin cluster to the target cluster while maintaining read and write operations with minimal downtime.
+
+### ZDM Proxy Components
+
+| File | Purpose | Description |
+|------|---------|-------------|
+| `zdm-proxy.yaml` | Proxy Deployment | ZDM proxy deployment, service, and pod disruption budget |
+| `fraud-detection-zdm.yaml` | Performance Testing | NoSQLBench workload for testing proxy with read/write operations |
+
+### ZDM Proxy Setup
+
+1. **Deploy the ZDM Proxy**:
+   ```bash
+   kubectl apply -f zdm-proxy/zdm-proxy.yaml
+   ```
+
+2. **Verify Proxy Status**:
+   ```bash
+   kubectl get pods -n <your-namespace> -l app=zdm-proxy
+   kubectl logs deployment/zdm-proxy -n <your-namespace>
+   ```
+
+### Testing with NoSQLBench
+
+The `fraud-detection-zdm.yaml` file contains a comprehensive NoSQLBench workload that tests the ZDM proxy with realistic fraud detection scenarios including:
+
+- **Schema Creation**: Creates `fraud_detection` keyspace and tables
+- **Data Generation**: Produces realistic transaction data with fraud indicators
+- **Read Operations**: Performs transaction lookups and user transaction queries  
+- **Write Operations**: Inserts new transactions and user activity records
+- **Load Testing**: Runs continuous read/write workloads to test proxy performance
+
+**To run the performance test**:
+```bash
+kubectl apply -f zdm-proxy/fraud-detection-zdm.yaml
+kubectl logs job/fraud-detection-nb -n applications -f
+```
+
+This workload connects to the ZDM proxy service and performs mixed read/write operations, allowing you to validate that the proxy correctly routes traffic between your origin and target clusters.
+
+### Client Connection
+
+After deploying the ZDM proxy, clients can connect through the proxy service instead of directly to either cluster:
+
+**Connection Details**:
+- **Host**: `zdm-proxy-service.<your-namespace>.svc.cluster.local`
+- **Port**: `9042` (standard Cassandra port)
+- **Credentials**: Use your target cluster (HCD) credentials
+
+For detailed information on configuring clients to use the ZDM proxy, refer to the [DataStax ZDM documentation](https://docs.datastax.com/en/data-migration/connect-clients-to-proxy.html).
+
 ## References
 
 - [DataStax Cassandra Data Migrator](https://github.com/datastax/cassandra-data-migrator)
 - [DataStax Mission Control](https://docs.datastax.com/en/mission-control/)
+- [DataStax Zero Downtime Migration](https://docs.datastax.com/en/data-migration/connect-clients-to-proxy.html)
 - [Apache Cassandra Documentation](https://cassandra.apache.org/doc/) 

@@ -246,6 +246,37 @@ The `zdm-proxy/` directory contains configurations for DataStax's Zero Downtime 
    kubectl logs deployment/zdm-proxy -n <your-namespace>
    ```
 
+### Environment Variables Configuration
+
+The ZDM proxy deployment (`zdm-proxy/zdm-proxy.yaml`) includes the following key environment variables that configure the connection to both origin and target clusters:
+
+#### Proxy Configuration
+| Variable | Value | Description |
+|----------|--------|-------------|
+| `ZDM_PROXY_LISTEN_ADDRESS` | `0.0.0.0` | Proxy listen interface |
+| `ZDM_PROXY_LISTEN_PORT` | `14002` | Proxy listen port |
+| `ZDM_PRIMARY_CLUSTER` | `ORIGIN` | Primary cluster designation |
+| `ZDM_READ_MODE` | `PRIMARY_ONLY` | Read routing mode |
+| `ZDM_LOG_LEVEL` | `INFO` | Logging level |
+
+#### Origin Cluster (Apache Cassandra)
+| Variable | Value | Description |
+|----------|--------|-------------|
+| `ZDM_ORIGIN_CONTACT_POINTS` | `cassandra-cassandra-dc-1-service.hcd-epk60j1n.svc.cluster.local` | Origin cluster service endpoint |
+| `ZDM_ORIGIN_PORT` | `9042` | Origin cluster CQL port |
+| `ZDM_ORIGIN_USERNAME` | `cassandra-superuser` | Origin cluster username |
+| `ZDM_ORIGIN_PASSWORD` | From secret `cassandra-superuser` | Origin cluster password (from Kubernetes secret) |
+
+#### Target Cluster (DataStax HCD)
+| Variable | Value | Description |
+|----------|--------|-------------|
+| `ZDM_TARGET_CONTACT_POINTS` | `hcd-hcd-dc-1-service.hcd-epk60j1n.svc.cluster.local` | Target cluster service endpoint |
+| `ZDM_TARGET_PORT` | `9042` | Target cluster CQL port |
+| `ZDM_TARGET_USERNAME` | `hcd-superuser` | Target cluster username |
+| `ZDM_TARGET_PASSWORD` | From secret `hcd-superuser` | Target cluster password (from Kubernetes secret) |
+
+**Important:** Update the namespace `hcd-epk60j1n` in the contact points and secret references to match your deployment namespace.
+
 ### Testing with NoSQLBench
 
 The `fraud-detection-zdm.yaml` file contains a comprehensive NoSQLBench workload that tests the ZDM proxy with realistic fraud detection scenarios including:
